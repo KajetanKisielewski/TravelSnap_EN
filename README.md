@@ -28,6 +28,7 @@ This repository uses branches to separate the code for each lesson. To see the c
 
 - `master` - The latest, most up-to-date code.
 - `lesson-1` - Project bootstrap and welcome screen.
+- `lesson-2` - JSX, components, and props (`TripCard`, `RatingStars`).
 *(More branches will be added as the course progresses)*
 
 ## 🗺️ Course Roadmap
