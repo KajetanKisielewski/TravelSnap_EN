@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import RatingStars from './RatingStars';
 
@@ -7,9 +7,10 @@ export interface TripCardProps {
   destination: string;
   date: string;
   rating: number;
+  onDelete?: () => void;
 }
 
-export default function TripCard({ title, destination, date, rating }: TripCardProps) {
+export default function TripCard({ title, destination, date, rating, onDelete }: TripCardProps) {
   return (
     <View style={styles.card}>
       <Text style={styles.title}>{title}</Text>
@@ -17,6 +18,11 @@ export default function TripCard({ title, destination, date, rating }: TripCardP
         {destination} | {date}
       </Text>
       <RatingStars rating={rating} />
+      {onDelete && (
+        <Pressable onPress={onDelete}>
+          <Text style={styles.deleteBtn}>Delete</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -40,5 +46,10 @@ const styles = StyleSheet.create({
   meta: {
     fontSize: 14,
     color: '#888',
+  },
+  deleteBtn: {
+    color: 'red',
+    marginTop: 8,
+    fontWeight: 'bold',
   },
 });
