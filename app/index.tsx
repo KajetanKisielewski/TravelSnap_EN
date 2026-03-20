@@ -1,21 +1,31 @@
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { useState } from "react";
+import { ScrollView, StyleSheet, Text } from "react-native";
 
-import AddTripForm from '@/components/AddTripForm';
-import TripCard from '@/components/TripCard';
+import AddTripForm from "@/components/AddTripForm";
+import TripCard from "@/components/TripCard";
 
-import type { Trip, TripData } from '@/types/trip';
+import type { Trip, TripData } from "@/types/trip";
 
 export default function HomeScreen() {
   const [trips, setTrips] = useState<Trip[]>([]);
 
   const handleAddTrip = (data: TripData): void => {
-    const newTrip: Trip = { id: Date.now().toString(), ...data };
-    setTrips([newTrip, ...trips]);
+    // ✅ validation
+    if (!data.title.trim() || !data.destination.trim()) return;
+
+    const newTrip: Trip = {
+      id: Date.now().toString(),
+      title: data.title.trim(),
+      destination: data.destination.trim(),
+      date: data.date.trim() || "No date",
+      rating: data.rating,
+    };
+
+    setTrips((prev) => [newTrip, ...prev]);
   };
 
   const handleDeleteTrip = (id: string): void => {
-    setTrips(trips.filter((trip) => trip.id !== id));
+    setTrips((prev) => prev.filter((trip) => trip.id !== id));
   };
 
   return (
@@ -41,15 +51,15 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
   },
   content: {
     padding: 16,
   },
   countText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginBottom: 12,
     marginLeft: 4,
   },
