@@ -56,5 +56,7 @@ const styles = StyleSheet.create({
   },
   deleteText: { color: '#ef4444', fontWeight: '700', fontSize: 13 },
   destination: { fontSize: 14, color: '#6b7280', marginBottom: 4 },
-  date: { fontSize: 14, color: '#6b7280', marginBottom: 8 },
+  date: { 
+    fontSize: 14, color: '#6b7280', marginBottom: 8 
+  },
 });
