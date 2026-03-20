@@ -1,28 +1,31 @@
-import { StyleSheet, Text, View, Pressable } from 'react-native';
-
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import RatingStars from './RatingStars';
 
-import type { TripData } from '@/types/trip';
+type Trip = {
+  id: string;
+  title: string;
+  destination: string;
+  date: string;
+  rating: number;
+};
 
-export interface TripCardProps extends TripData {
-  onDelete?: () => void;
-}
+type Props = {
+  trip: Trip;
+  onDelete: (id: string) => void;
+};
 
-export default function TripCard({ title, destination, date, rating, onDelete }: TripCardProps) {
+export default function TripCard({ trip, onDelete }: Props) {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.title}>{title}</Text>
-        {onDelete && (
-          <Pressable onPress={onDelete} style={styles.deleteButton}>
-            <Text style={styles.deleteText}>X</Text>
-          </Pressable>
-        )}
+        <Text style={styles.title}>{trip.title}</Text>
+        <TouchableOpacity onPress={() => onDelete(trip.id)} style={styles.deleteBtn}>
+          <Text style={styles.deleteText}>✕</Text>
+        </TouchableOpacity>
       </View>
-      <Text style={styles.meta}>
-        {destination} | {date}
-      </Text>
-      <RatingStars rating={rating} />
+      <Text style={styles.destination}>📍 {trip.destination}</Text>
+      <Text style={styles.date}>🗓 {trip.date}</Text>
+      <RatingStars rating={trip.rating} />
     </View>
   );
 }
@@ -30,11 +33,11 @@ export default function TripCard({ title, destination, date, rating, onDelete }:
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#fff',
+    borderRadius: 12,
     padding: 16,
-    borderRadius: 32,
     marginBottom: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
   },
@@ -42,25 +45,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 6,
   },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a2e',
-    flex: 1,
+  title: { fontSize: 17, fontWeight: '700', flex: 1 },
+  deleteBtn: {
+    backgroundColor: '#fee2e2',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  deleteButton: {
-    padding: 4,
-    marginLeft: 8,
-  },
-  deleteText: {
-    color: '#ff4444',
-    fontWeight: 'bold',
-    fontSize: 18,
-  },
-  meta: {
-    fontSize: 14,
-    color: '#888',
-    marginTop: 4,
+  deleteText: { color: '#ef4444', fontWeight: '700', fontSize: 13 },
+  destination: { fontSize: 14, color: '#6b7280', marginBottom: 4 },
+  date: { 
+    fontSize: 14, color: '#6b7280', marginBottom: 8 
   },
 });
