@@ -1,51 +1,60 @@
-import { ScrollView, StyleSheet } from 'react-native';
+import { useState } from "react";
+import { Button, FlatList, Text, TextInput, View } from "react-native";
 
-import TripCard from '@/components/TripCard';
-import type { TripCardProps } from '@/components/TripCard';
+export default function Index() {
+  const [tripName, setTripName] = useState("");
+  const [trips, setTrips] = useState<string[]>([]);
 
-const trips: TripCardProps[] = [
-  {
-    title: 'Holiday in Poland',
-    destination: 'Warsaw',
-    date: '2026-03-11',
-    rating: 5,
-  },
-  {
-    title: 'Weekend in Krakow',
-    destination: 'Krakow',
-    date: '2026-04-02',
-    rating: 4,
-  },
-  {
-    title: 'Trip to Bali',
-    destination: 'Ubud',
-    date: '2026-07-20',
-    rating: 3,
-  },
-];
+  const addTrip = () => {
+    if (tripName.trim() === "") return;
 
-export default function HomeScreen() {
+    setTrips([...trips, tripName]);
+    setTripName("");
+  };
+
+  const deleteTrip = (index: number) => {
+    const newTrips = trips.filter((_, i) => i !== index);
+    setTrips(newTrips);
+  };
+
   return (
-    <ScrollView contentContainerStyle={styles.content} style={styles.container}>
-      {trips.map((trip) => (
-        <TripCard
-          key={`${trip.title}-${trip.date}`}
-          title={trip.title}
-          destination={trip.destination}
-          date={trip.date}
-          rating={trip.rating}
-        />
-      ))}
-    </ScrollView>
+    <View style={{ padding: 20 }}>
+      <Text style={{ fontSize: 20, fontWeight: "bold" }}>
+        Add a Trip
+      </Text>
+
+      <TextInput
+        placeholder="Enter trip name"
+        value={tripName}
+        onChangeText={setTripName}
+        style={{
+          borderWidth: 1,
+          marginVertical: 10,
+          padding: 8,
+          borderRadius: 5,
+        }}
+      />
+
+      <Button title="Add Trip" onPress={addTrip} />
+
+      <FlatList
+        style={{ marginTop: 20 }}
+        data={trips}
+        keyExtractor={(item, index) => index.toString()}
+        renderItem={({ item, index }) => (
+          <Text
+            style={{
+              padding: 10,
+              marginVertical: 5,
+              backgroundColor: "#eee",
+              borderRadius: 5,
+            }}
+            onPress={() => deleteTrip(index)}
+          >
+            {item} ❌
+          </Text>
+        )}
+      />
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  content: {
-    padding: 16,
-  },
-});
