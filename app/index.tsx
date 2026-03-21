@@ -1,39 +1,37 @@
-import { ScrollView, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 
+import AddTripForm from '@/components/AddTripForm';
 import TripCard from '@/components/TripCard';
-import type { TripCardProps } from '@/components/TripCard';
 
-const trips: TripCardProps[] = [
-  {
-    title: 'Holiday in Poland',
-    destination: 'Warsaw',
-    date: '2026-03-11',
-    rating: 5,
-  },
-  {
-    title: 'Weekend in Krakow',
-    destination: 'Krakow',
-    date: '2026-04-02',
-    rating: 4,
-  },
-  {
-    title: 'Trip to Bali',
-    destination: 'Ubud',
-    date: '2026-07-20',
-    rating: 3,
-  },
-];
+import type { Trip, TripData } from '@/types/trip';
 
 export default function HomeScreen() {
+  const [trips, setTrips] = useState<Trip[]>([]);
+
+  const handleAddTrip = (data: TripData): void => {
+    const newTrip: Trip = { id: Date.now().toString(), ...data };
+    setTrips([newTrip, ...trips]);
+  };
+
+  const handleDeleteTrip = (id: string): void => {
+    setTrips(trips.filter((trip) => trip.id !== id));
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.content} style={styles.container}>
+      <AddTripForm onAdd={handleAddTrip} />
+
+      <Text style={styles.countText}>Total trips: {trips.length}</Text>
+
       {trips.map((trip) => (
         <TripCard
-          key={`${trip.title}-${trip.date}`}
+          key={trip.id}
           title={trip.title}
           destination={trip.destination}
           date={trip.date}
           rating={trip.rating}
+          onDelete={() => handleDeleteTrip(trip.id)}
         />
       ))}
     </ScrollView>
@@ -47,5 +45,12 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+  },
+  countText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+    marginLeft: 4,
   },
 });
