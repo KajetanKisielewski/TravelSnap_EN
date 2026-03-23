@@ -1,51 +1,96 @@
-import { ScrollView, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { Button, ScrollView, Text, TextInput } from 'react-native';
+import TripCard from '../components/TripCard';
 
-import TripCard from '@/components/TripCard';
-import type { TripCardProps } from '@/components/TripCard';
-
-const trips: TripCardProps[] = [
-  {
-    title: 'Holiday in Poland',
-    destination: 'Warsaw',
-    date: '2026-03-11',
-    rating: 5,
-  },
-  {
-    title: 'Weekend in Krakow',
-    destination: 'Krakow',
-    date: '2026-04-02',
-    rating: 4,
-  },
-  {
-    title: 'Trip to Bali',
-    destination: 'Ubud',
-    date: '2026-07-20',
-    rating: 3,
-  },
-];
+type Trip = {
+  id: string;
+  title: string;
+  destination: string;
+  date: string;
+  rating: number;
+};
 
 export default function HomeScreen() {
+  const [title, setTitle] = useState('');
+  const [destination, setDestination] = useState('');
+  const [date, setDate] = useState('');
+  const [rating, setRating] = useState('');
+  const [trips, setTrips] = useState<Trip[]>([]);
+
+  const addTrip = () => {
+    if (title.trim() === '' || destination.trim() === '') {
+      return;
+    }
+
+    const newTrip: Trip = {
+      id: Date.now().toString(),
+      title: title.trim(),
+      destination: destination.trim(),
+      date: date.trim(),
+      rating: Number(rating) || 1,
+    };
+
+    setTrips([...trips, newTrip]);
+
+    setTitle('');
+    setDestination('');
+    setDate('');
+    setRating('');
+  };
+
+  const deleteTrip = (id: string) => {
+    setTrips(trips.filter((trip) => trip.id !== id));
+  };
+
   return (
-    <ScrollView contentContainerStyle={styles.content} style={styles.container}>
+    <ScrollView style={{ padding: 20 }}>
+      <Text style={{ fontSize: 24, marginBottom: 10 }}>My Trips</Text>
+
+      <TextInput
+        placeholder="Title"
+        value={title}
+        onChangeText={setTitle}
+        style={{ borderWidth: 1, marginBottom: 10, padding: 8 }}
+      />
+
+      <TextInput
+        placeholder="Destination"
+        value={destination}
+        onChangeText={setDestination}
+        style={{ borderWidth: 1, marginBottom: 10, padding: 8 }}
+      />
+
+      <TextInput
+        placeholder="Date"
+        value={date}
+        onChangeText={setDate}
+        style={{ borderWidth: 1, marginBottom: 10, padding: 8 }}
+      />
+
+      <TextInput
+        placeholder="Rating"
+        value={rating}
+        onChangeText={setRating}
+        keyboardType="numeric"
+        style={{ borderWidth: 1, marginBottom: 10, padding: 8 }}
+      />
+
+      <Button title="Add Trip" onPress={addTrip} />
+
+      <Text style={{ marginTop: 20, marginBottom: 10 }}>
+        Total: {trips.length}
+      </Text>
+
       {trips.map((trip) => (
         <TripCard
-          key={`${trip.title}-${trip.date}`}
+          key={trip.id}
           title={trip.title}
           destination={trip.destination}
           date={trip.date}
           rating={trip.rating}
+          onDelete={() => deleteTrip(trip.id)}
         />
       ))}
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  content: {
-    padding: 16,
-  },
-});
