@@ -8,13 +8,13 @@ interface AddTripFormProps {
   onAdd: (trip: TripData) => void;
 }
 
-const DATE_REGEX = /^\d{4}-\d{2}$/;
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 const validate = (title: string, destination: string, date: string, rating: string): string | null => {
   if (!title.trim() || !destination.trim() || !date.trim() || !rating.trim())
     return 'All fields are required!';
   if (!DATE_REGEX.test(date))
-    return 'Date must be in YYYY-MM format!';
+    return 'Date must be in YYYY-MM-DD format!';
   const ratingNum = Number(rating);
   if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5)
     return 'Rating must be a number between 1 and 5!';
@@ -67,7 +67,7 @@ export default function AddTripForm({ onAdd }: AddTripFormProps) {
       />
       <TextInput
         style={styles.input}
-        placeholder="Date (YYYY-MM)"
+        placeholder="Date (YYYY-MM-DD)"
         placeholderTextColor={Colors.textSecondary}
         value={date}
         onChangeText={setDate}
