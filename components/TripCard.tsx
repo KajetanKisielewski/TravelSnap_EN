@@ -1,10 +1,12 @@
 import { StyleSheet, Text, View, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+import { Colors } from '@/constants/Colors';
+import type { TripData } from '@/types/trip';
 
 import RatingStars from './RatingStars';
 
-import type { TripData } from '@/types/trip';
-
-export interface TripCardProps extends TripData {
+interface TripCardProps extends TripData {
   onDelete?: () => void;
 }
 
@@ -15,13 +17,14 @@ export default function TripCard({ title, destination, date, rating, onDelete }:
         <Text style={styles.title}>{title}</Text>
         {onDelete && (
           <Pressable onPress={onDelete} style={styles.deleteButton}>
-            <Text style={styles.deleteText}>X</Text>
+            <Ionicons name="close" size={16} color={Colors.accent} />
           </Pressable>
         )}
       </View>
       <Text style={styles.meta}>
         {destination} | {date}
       </Text>
+      <View style={styles.separator} />
       <RatingStars rating={rating} />
     </View>
   );
@@ -29,14 +32,14 @@ export default function TripCard({ title, destination, date, rating, onDelete }:
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.card,
     padding: 16,
-    borderRadius: 32,
+    borderRadius: 16,
     marginBottom: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 4,
   },
   header: {
     flexDirection: 'row',
@@ -46,21 +49,25 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1a1a2e',
+    color: Colors.textPrimary,
     flex: 1,
   },
   deleteButton: {
-    padding: 4,
+    backgroundColor: Colors.accentTransparent,
+    padding: 6,
+    borderRadius: 12,
     marginLeft: 8,
-  },
-  deleteText: {
-    color: '#ff4444',
-    fontWeight: 'bold',
-    fontSize: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   meta: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: 13,
+    color: Colors.textSecondary,
     marginTop: 4,
+  },
+  separator: {
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    marginVertical: 12,
   },
 });
