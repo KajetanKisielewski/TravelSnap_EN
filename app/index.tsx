@@ -1,39 +1,48 @@
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
-
 import AddTripForm from '@/components/AddTripForm';
+import EmptyState from '@/components/EmptyState';
+import ScreenHeader from '@/components/ScreenHeader';
 import TripCard from '@/components/TripCard';
+import { Colors } from '@/constants/Colors';
+import { useState } from 'react';
+import { ScrollView, StyleSheet } from 'react-native';
 
-import type { Trip, TripData } from '@/types/trip';
+interface Trip {
+  id: string;
+  title: string;
+  destination: string;
+  date: string;
+  rating: number;
+}
 
 export default function HomeScreen() {
   const [trips, setTrips] = useState<Trip[]>([]);
 
-  const handleAddTrip = (data: TripData): void => {
-    const newTrip: Trip = { id: Date.now().toString(), ...data };
-    setTrips([newTrip, ...trips]);
+  const handleAddTrip = (trip: Omit<Trip, 'id'>) => {
+    const newTrip: Trip = {
+      id: Date.now().toString(),
+      ...trip,
+    };
+    setTrips([...trips, newTrip]);
   };
 
-  const handleDeleteTrip = (id: string): void => {
-    setTrips(trips.filter((trip) => trip.id !== id));
+  const handleDeleteTrip = (id: string) => {
+    setTrips(trips.filter((t) => t.id !== id));
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.content} style={styles.container}>
+    <ScrollView style={styles.container}>
+      <ScreenHeader tripCount={trips.length} />
       <AddTripForm onAdd={handleAddTrip} />
-
-      <Text style={styles.countText}>Total trips: {trips.length}</Text>
-
-      {trips.map((trip) => (
-        <TripCard
-          key={trip.id}
-          title={trip.title}
-          destination={trip.destination}
-          date={trip.date}
-          rating={trip.rating}
-          onDelete={() => handleDeleteTrip(trip.id)}
-        />
-      ))}
+      {trips.length === 0
+        ? <EmptyState />
+        : trips.map((trip) => (
+            <TripCard
+              key={trip.id}
+              {...trip}
+              onDelete={() => handleDeleteTrip(trip.id)}
+            />
+          ))
+      }
     </ScrollView>
   );
 }
@@ -41,16 +50,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  content: {
-    padding: 16,
-  },
-  countText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
-    marginLeft: 4,
+    backgroundColor: Colors.background,
   },
 });
