@@ -30,6 +30,7 @@ This repository uses branches to separate the code for each lesson. To see the c
 - `lesson-1` - Project bootstrap and welcome screen.
 - `lesson-2` - JSX, components, and props (`TripCard`, `RatingStars`).
 - `lesson-3` - State, hooks (`useState`), and interactive "add trip" form.
+- `lesson-4` - Styling system (`StyleSheet`) and Flexbox layouts.
 
 *(More branches will be added as the course progresses)*
 
