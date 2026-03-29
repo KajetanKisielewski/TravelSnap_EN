@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {Colors} from "@/constants/Colors";
 
 import type { TripData } from '@/types/trip';
 
@@ -83,40 +84,45 @@ export default function AddTripForm({ onAdd }: AddTripFormProps) {
   );
 }
 
+
 const styles = StyleSheet.create({
   form: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.card,
     padding: 16,
     borderRadius: 16,
     marginBottom: 24,
     elevation: 2,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.25,
     shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   formTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
-    color: '#1a1a2e',
+    color: Colors.textPrimary,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: Colors.inputBorder,
+    backgroundColor: Colors.inputBg,
+    color: Colors.textPrimary,
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
     fontSize: 16,
   },
   addButton: {
-    backgroundColor: '#e94560',
+    backgroundColor: Colors.accent,
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
     marginTop: 8,
   },
   addButtonText: {
-    color: '#fff',
+    color: Colors.textPrimary,
     fontWeight: 'bold',
     fontSize: 16,
   },
