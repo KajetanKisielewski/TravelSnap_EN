@@ -1,39 +1,68 @@
-import { useState } from "react";
-import { Button, FlatList, Text, TextInput, View } from "react-native";
+import { useState } from 'react';
+import { SafeAreaView, ScrollView, StatusBar } from 'react-native';
+import { Colors } from '../constants/Colors';
+
+import AddTripForm from '../components/AddTripForm';
+import EmptyState from '../components/EmptyState';
+import ScreenHeader from '../components/ScreenHeader';
+import TripCard from '../components/TripCard';
+import TripStats from '../components/TripStats';
+
+interface Trip {
+  id: string;
+  title: string;
+  destination: string;
+  date: string;
+  rating: number;
+}
 
 export default function Index() {
-  const [tripName, setTripName] = useState("");
-  const [trips, setTrips] = useState<string[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
 
-  const addTrip = () => {
-    if (tripName.trim() === "") return;
+  const handleAddTrip = (newTrip: Omit<Trip, 'id'>) => {
+    const tripWithId: Trip = {
+      id: Date.now().toString(),
+      ...newTrip,
+    };
 
-    setTrips([...trips, tripName]);
-    setTripName("");
+    setTrips((prev) => [tripWithId, ...prev]);
+  };
+
+  const handleDeleteTrip = (id: string) => {
+    setTrips((prev) => prev.filter((trip) => trip.id !== id));
   };
 
   return (
-    <View style={{ padding: 20 }}>
-      <Text>Add a Trip</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+      
+      {/* STATUS BAR */}
+      <StatusBar barStyle="light-content" />
 
-      <TextInput
-        placeholder="Enter trip name"
-        value={tripName}
-        onChangeText={setTripName}
-        style={{
-          borderWidth: 1,
-          marginVertical: 10,
-          padding: 8,
-        }}
-      />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16 }}
+      >
+        <ScreenHeader tripCount={trips.length} />
 
-      <Button title="Add Trip" onPress={addTrip} />
+        <TripStats trips={trips} />
 
-      <FlatList
-        data={trips}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={({ item }) => <Text>• {item}</Text>}
-      />
-    </View>
+        <AddTripForm onAdd={handleAddTrip} />
+
+        {trips.length === 0 ? (
+          <EmptyState />
+        ) : (
+          trips.map((trip) => (
+            <TripCard
+              key={trip.id}
+              title={trip.title}
+              destination={trip.destination}
+              date={trip.date}
+              rating={trip.rating}
+              onDelete={() => handleDeleteTrip(trip.id)}
+            />
+          ))
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
