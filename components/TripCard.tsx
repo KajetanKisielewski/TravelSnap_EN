@@ -1,29 +1,11 @@
+import RatingStars from '@/components/RatingStars';
 import { Colors } from '@/constants/Colors';
+import type { Trip } from '@/types/trip';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-export interface TripCardProps {
-  id: string;
-  title: string;
-  destination: string;
-  date: string;
-  rating: number;
+export interface TripCardProps extends Trip {
   onDelete?: () => void;
-}
-
-function StarRating({ rating }: { rating: number }) {
-  return (
-    <View style={styles.stars}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <Ionicons
-          key={i}
-          name={i <= rating ? 'star' : 'star-outline'}
-          size={16}
-          color={Colors.accent}
-        />
-      ))}
-    </View>
-  );
 }
 
 export default function TripCard({ title, destination, date, rating, onDelete }: TripCardProps) {
@@ -42,7 +24,7 @@ export default function TripCard({ title, destination, date, rating, onDelete }:
         <Text style={styles.dateText}>{date}</Text>
       </View>
 
-      <StarRating rating={rating} />
+      <RatingStars rating={rating} />
 
       {onDelete && (
         <Pressable style={styles.deleteBtn} onPress={onDelete}>
@@ -89,10 +71,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.primary,
     marginLeft: 6,
-  },
-  stars: {
-    flexDirection: 'row',
-    gap: 2,
   },
   deleteBtn: {
     marginTop: 12,

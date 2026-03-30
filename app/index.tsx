@@ -3,21 +3,14 @@ import EmptyState from '@/components/EmptyState';
 import ScreenHeader from '@/components/ScreenHeader';
 import TripCard from '@/components/TripCard';
 import { Colors } from '@/constants/Colors';
+import type { Trip, TripData } from '@/types/trip';
 import { useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
-
-interface Trip {
-  id: string;
-  title: string;
-  destination: string;
-  date: string;
-  rating: number;
-}
 
 export default function HomeScreen() {
   const [trips, setTrips] = useState<Trip[]>([]);
 
-  const handleAddTrip = (trip: Omit<Trip, 'id'>) => {
+  const handleAddTrip = (trip: TripData) => {
     const newTrip: Trip = {
       id: Date.now().toString(),
       ...trip,
