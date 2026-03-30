@@ -1,60 +1,88 @@
 import { useState } from "react";
-import { Button, FlatList, Text, TextInput, View } from "react-native";
+import {
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+} from "react-native";
+
+import AddTripForm from "../components/AddTripForm";
+import EmptyState from "../components/EmptyState";
+import ScreenHeader from "../components/ScreenHeader";
+import TripCard, { TripCardProps } from "../components/TripCard";
+import TripStats from "../components/TripStats";
+import { Colors } from "../constants/Colors";
+
+interface Trip extends TripCardProps {
+  id: string;
+}
 
 export default function Index() {
-  const [tripName, setTripName] = useState("");
-  const [trips, setTrips] = useState<string[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
 
-  const addTrip = () => {
-    if (tripName.trim() === "") return;
+  const handleAddTrip = (tripName: string) => {
+    if (!tripName.trim()) return;
 
-    setTrips([...trips, tripName]);
-    setTripName("");
+    const newTrip: Trip = {
+      id: Date.now().toString(),
+      title: tripName,
+      destination: "Unknown",
+      date: new Date().toLocaleDateString(),
+      rating: Math.floor(Math.random() * 5) + 1,
+    };
+
+    setTrips([newTrip, ...trips]);
   };
 
-  const deleteTrip = (index: number) => {
-    const newTrips = trips.filter((_, i) => i !== index);
-    setTrips(newTrips);
+  const handleDeleteTrip = (id: string) => {
+    setTrips(trips.filter((trip) => trip.id !== id));
   };
 
   return (
-    <View style={{ padding: 20 }}>
-      <Text style={{ fontSize: 20, fontWeight: "bold" }}>
-        Add a Trip
-      </Text>
+    <SafeAreaView style={styles.safeArea}>
+      {/* StatusBar with light content */}
+      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
 
-      <TextInput
-        placeholder="Enter trip name"
-        value={tripName}
-        onChangeText={setTripName}
-        style={{
-          borderWidth: 1,
-          marginVertical: 10,
-          padding: 8,
-          borderRadius: 5,
-        }}
-      />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ padding: 16 }}
+      >
+        {/* 1️⃣ Header */}
+        <ScreenHeader tripCount={trips.length} />
 
-      <Button title="Add Trip" onPress={addTrip} />
+        {/* 2️⃣ Trip stats */}
+        {trips.length > 0 && <TripStats trips={trips} />}
 
-      <FlatList
-        style={{ marginTop: 20 }}
-        data={trips}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={({ item, index }) => (
-          <Text
-            style={{
-              padding: 10,
-              marginVertical: 5,
-              backgroundColor: "#eee",
-              borderRadius: 5,
-            }}
-            onPress={() => deleteTrip(index)}
-          >
-            {item} ❌
-          </Text>
+        {/* 3️⃣ Add Trip Form */}
+        <AddTripForm onAdd={handleAddTrip} />
+
+        {/* 4️⃣ Trip List or EmptyState */}
+        {trips.length === 0 ? (
+          <EmptyState />
+        ) : (
+          trips.map((trip) => (
+            <TripCard
+              key={trip.id}
+              title={trip.title}
+              destination={trip.destination}
+              date={trip.date}
+              rating={trip.rating}
+              onDelete={() => handleDeleteTrip(trip.id)}
+            />
+          ))
         )}
-      />
-    </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+});
