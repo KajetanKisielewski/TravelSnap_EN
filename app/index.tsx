@@ -1,10 +1,14 @@
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+// app/index.tsx
+import { useState } from "react";
+import { SafeAreaView, ScrollView, StatusBar, StyleSheet } from "react-native";
 
-import AddTripForm from '@/components/AddTripForm';
-import TripCard from '@/components/TripCard';
-
-import type { Trip, TripData } from '@/types/trip';
+import AddTripForm from "@/components/AddTripForm";
+import EmptyState from "@/components/EmptyState";
+import ScreenHeader from "@/components/ScreenHeader";
+import TripCard from "@/components/TripCard";
+import TripStats from "@/components/TripStats";
+import { Colors } from "@/constants/Colors";
+import type { Trip, TripData } from "@/types/trip";
 
 export default function HomeScreen() {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -19,38 +23,42 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.content} style={styles.container}>
-      <AddTripForm onAdd={handleAddTrip} />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+      >
+        <ScreenHeader tripCount={trips.length} />
+        <TripStats trips={trips} />
+        <AddTripForm onAdd={handleAddTrip} />
 
-      <Text style={styles.countText}>Total trips: {trips.length}</Text>
-
-      {trips.map((trip) => (
-        <TripCard
-          key={trip.id}
-          title={trip.title}
-          destination={trip.destination}
-          date={trip.date}
-          rating={trip.rating}
-          onDelete={() => handleDeleteTrip(trip.id)}
-        />
-      ))}
-    </ScrollView>
+        {trips.length === 0 ? (
+          <EmptyState />
+        ) : (
+          trips.map((trip) => (
+            <TripCard
+              key={trip.id}
+              {...trip}
+              onDelete={() => handleDeleteTrip(trip.id)}
+            />
+          ))
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.background,
   },
   content: {
     padding: 16,
-  },
-  countText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
-    marginLeft: 4,
   },
 });
