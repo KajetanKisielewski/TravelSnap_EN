@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View, Pressable } from 'react-native';
+import type { GestureResponderEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Colors } from '@/constants/Colors';
@@ -11,12 +12,18 @@ interface TripCardProps extends TripData {
 }
 
 export default function TripCard({ title, destination, date, rating, onDelete }: TripCardProps) {
+  const handleDeletePress = (event: GestureResponderEvent): void => {
+    // Prevent parent card press (Link navigation) when deleting.
+    event.stopPropagation();
+    onDelete?.();
+  };
+
   return (
     <View style={styles.card}>
       <View style={styles.header}>
         <Text style={styles.title}>{title}</Text>
         {onDelete && (
-          <Pressable onPress={onDelete} style={styles.deleteButton}>
+          <Pressable onPress={handleDeletePress} style={styles.deleteButton}>
             <Ionicons name="close" size={16} color={Colors.accent} />
           </Pressable>
         )}
