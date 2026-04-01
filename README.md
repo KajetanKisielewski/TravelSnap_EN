@@ -31,6 +31,7 @@ This repository uses branches to separate the code for each lesson. To see the c
 - `lesson-2` - JSX, components, and props (`TripCard`, `RatingStars`).
 - `lesson-3` - State, hooks (`useState`), and interactive "add trip" form.
 - `lesson-4` - Styling system (`StyleSheet`) and Flexbox layouts.
+- `lesson-5` - Navigation with Expo Router (Stack + Tabs).
 
 *(More branches will be added as the course progresses)*
 
