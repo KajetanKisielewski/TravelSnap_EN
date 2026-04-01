@@ -4,6 +4,9 @@ import RatingStars from './RatingStars';
 
 import type { TripData } from '@/types/trip';
 
+import { Colors } from '@/constants/Colors';
+import { Ionicons } from '@expo/vector-icons';
+
 export interface TripCardProps extends TripData {
   onDelete?: () => void;
 }
@@ -29,14 +32,14 @@ export default function TripCard({ title, destination, date, rating, onDelete }:
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.card,
     padding: 16,
-    borderRadius: 32,
+    borderRadius: 16,
     marginBottom: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 4,
   },
   header: {
     flexDirection: 'row',
@@ -46,21 +49,22 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1a1a2e',
+    color: Colors.textPrimary,
     flex: 1,
   },
   deleteButton: {
-    padding: 4,
-    marginLeft: 8,
+    backgroundColor: 'rgba(233,69,96,0.15)',
+    padding: 6,
+    marginLeft: 6,
+    borderRadius: 12,
   },
   deleteText: {
-    color: '#ff4444',
+    color: Colors.accent,
     fontWeight: 'bold',
-    fontSize: 18,
   },
   meta: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: 13,
+    color: Colors.textSecondary,
     marginTop: 4,
   },
 });
