@@ -1,16 +1,23 @@
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { Colors } from '@/constants/Colors';
+import { useImagePicker } from '@/hooks/useImagePicker';
 import type { TripData } from '@/types/trip';
 
 interface AddTripFormProps {
-  onAdd: (trip: TripData) => void;
+  onAdd: (trip: TripData, id: string) => void;
 }
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
-const validate = (title: string, destination: string, date: string, rating: string): string | null => {
+const validate = (
+  title: string,
+  destination: string,
+  date: string,
+  rating: string
+): string | null => {
   if (!title.trim() || !destination.trim() || !date.trim() || !rating.trim())
     return 'All fields are required!';
   if (!DATE_REGEX.test(date))
@@ -22,10 +29,18 @@ const validate = (title: string, destination: string, date: string, rating: stri
 };
 
 export default function AddTripForm({ onAdd }: AddTripFormProps) {
+  const [tripId] = useState(() => Date.now().toString());
   const [title, setTitle] = useState('');
   const [destination, setDestination] = useState('');
   const [date, setDate] = useState('');
   const [rating, setRating] = useState('');
+  const [imageUri, setImageUri] = useState<string | undefined>();
+
+  const { handleAddPhoto } = useImagePicker({
+    tripId,
+    onSaved: setImageUri,
+    aspect: [16, 9],
+  });
 
   const handleSubmit = (): void => {
     const error = validate(title, destination, date, rating);
@@ -34,17 +49,23 @@ export default function AddTripForm({ onAdd }: AddTripFormProps) {
       return;
     }
 
-    onAdd({
-      title: title.trim(),
-      destination: destination.trim(),
-      date: date.trim(),
-      rating: Number(rating),
-    });
+    onAdd(
+      {
+        title: title.trim(),
+        destination: destination.trim(),
+        date: date.trim(),
+        rating: Number(rating),
+        imageUri,
+        galleryUris: imageUri ? [imageUri] : [],
+      },
+      tripId
+    );
 
     setTitle('');
     setDestination('');
     setDate('');
     setRating('');
+    setImageUri(undefined);
   };
 
   return (
@@ -81,6 +102,20 @@ export default function AddTripForm({ onAdd }: AddTripFormProps) {
         keyboardType="numeric"
       />
 
+      {imageUri ? (
+        <View style={styles.previewContainer}>
+          <Image source={{ uri: imageUri }} style={styles.preview} />
+          <Pressable style={styles.changePhotoButton} onPress={handleAddPhoto}>
+            <Text style={styles.changePhotoText}>Change photo</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable style={styles.photoPlaceholder} onPress={handleAddPhoto}>
+          <Ionicons name="camera-outline" size={32} color={Colors.textSecondary} />
+          <Text style={styles.photoPlaceholderText}>Add a photo</Text>
+        </Pressable>
+      )}
+
       <Pressable style={styles.addButton} onPress={handleSubmit}>
         <Text style={styles.addButtonText}>Add Trip</Text>
       </Pressable>
@@ -114,6 +149,41 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontSize: 16,
     color: Colors.textPrimary,
+  },
+  photoPlaceholder: {
+    borderWidth: 1.5,
+    borderColor: Colors.inputBorder,
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    height: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  photoPlaceholderText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+  },
+  previewContainer: {
+    marginBottom: 12,
+    gap: 8,
+  },
+  preview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+  },
+  changePhotoButton: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: Colors.inputBg,
+  },
+  changePhotoText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
   },
   addButton: {
     backgroundColor: Colors.accent,
