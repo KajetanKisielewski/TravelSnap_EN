@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -30,7 +30,8 @@ export default function TripDetailScreen() {
     );
   }
 
-  const { title, destination, date, rating } = trip;
+  const { title, destination, date, rating, imageUri, galleryUris } = trip;
+  const galleryCount = galleryUris?.length ?? 0;
 
   return (
     <>
@@ -54,27 +55,48 @@ export default function TripDetailScreen() {
         }}
       />
 
-      <View style={styles.screen}>
-        <Text style={styles.tripTitle}>{title}</Text>
+      <ScrollView style={styles.screen} bounces={false}>
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.heroImage} />
+        ) : (
+          <View style={styles.heroPlaceholder}>
+            <Ionicons name="image-outline" size={64} color="#4A6FA5" />
+            <Text style={styles.placeholderText}>No photo</Text>
+          </View>
+        )}
 
-        <View style={styles.metaRow}>
-          <Ionicons name="location" size={16} color={Colors.textSecondary} />
-          <Text style={styles.metaText}>{destination}</Text>
+        <View style={styles.body}>
+          <Pressable
+            style={styles.galleryButton}
+            onPress={() =>
+              router.push({ pathname: '/trip/gallery/[id]', params: { id } })
+            }
+          >
+            <Ionicons name="images-outline" size={20} color={Colors.primary} />
+            <Text style={styles.galleryButtonText}>Gallery ({galleryCount})</Text>
+          </Pressable>
+
+          <Text style={styles.tripTitle}>{title}</Text>
+
+          <View style={styles.metaRow}>
+            <Ionicons name="location" size={16} color={Colors.textSecondary} />
+            <Text style={styles.metaText}>{destination}</Text>
+          </View>
+
+          <View style={styles.metaRow}>
+            <Ionicons name="calendar" size={14} color={Colors.textSecondary} />
+            <Text style={[styles.metaText, styles.dateText]}>{date}</Text>
+          </View>
+
+          <View style={styles.starsRow}>
+            <RatingStars rating={rating} />
+          </View>
+
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backButtonText}>Back to list</Text>
+          </Pressable>
         </View>
-
-        <View style={styles.metaRow}>
-          <Ionicons name="calendar" size={14} color={Colors.textSecondary} />
-          <Text style={[styles.metaText, styles.dateText]}>{date}</Text>
-        </View>
-
-        <View style={styles.starsRow}>
-          <RatingStars rating={rating} />
-        </View>
-
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Back to list</Text>
-        </Pressable>
-      </View>
+      </ScrollView>
     </>
   );
 }
@@ -83,7 +105,41 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  heroImage: {
+    width: '100%',
+    height: 250,
+  },
+  heroPlaceholder: {
+    width: '100%',
+    height: 250,
+    backgroundColor: '#1A2744',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  placeholderText: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+  },
+  body: {
     padding: 24,
+  },
+  galleryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: Colors.card,
+    borderRadius: 10,
+    marginBottom: 20,
+    alignSelf: 'flex-start',
+  },
+  galleryButtonText: {
+    color: Colors.primary,
+    fontSize: 15,
+    fontWeight: '600',
   },
   tripTitle: {
     fontSize: 24,

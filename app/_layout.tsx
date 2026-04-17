@@ -29,6 +29,10 @@ export default function RootLayout() {
             presentation: 'modal',
           }}
         />
+        <Stack.Screen
+          name="trip/gallery/[id]"
+          options={{ animation: 'slide_from_right' }}
+        />
       </Stack>
       <StatusBar style="light" />
     </TripProvider>

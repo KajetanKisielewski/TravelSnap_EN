@@ -11,8 +11,8 @@ export default function AddTripScreen() {
   const { addTrip } = useTrips();
   const router = useRouter();
 
-  const handleAdd = (data: TripData): void => {
-    addTrip(data);
+  const handleAdd = (data: TripData, id: string): void => {
+    addTrip(data, id);
     router.back();
   };
 
