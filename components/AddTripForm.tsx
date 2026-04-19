@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
 import { Colors } from '@/constants/Colors';
 import type { TripData } from '@/types/trip';
+import { deleteImage, saveImageToTrip } from '@/utils/imageStorage';
 
 interface AddTripFormProps {
-  onAdd: (trip: TripData) => void;
+  onAdd: (trip: TripData, tripId: string) => void;
 }
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -21,11 +24,78 @@ const validate = (title: string, destination: string, date: string, rating: stri
   return null;
 };
 
+const createTripId = (): string => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
 export default function AddTripForm({ onAdd }: AddTripFormProps) {
   const [title, setTitle] = useState('');
   const [destination, setDestination] = useState('');
   const [date, setDate] = useState('');
   const [rating, setRating] = useState('');
+  const [imageUri, setImageUri] = useState<string>();
+  const [draftTripId, setDraftTripId] = useState(createTripId);
+
+  const replaceDraftImage = async (sourceUri: string): Promise<void> => {
+    const savedUri = await saveImageToTrip(sourceUri, draftTripId);
+
+    if (imageUri && imageUri !== savedUri) {
+      await deleteImage(imageUri);
+    }
+
+    setImageUri(savedUri);
+  };
+
+  const pickImage = async (): Promise<void> => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      await replaceDraftImage(result.assets[0].uri);
+    } catch {
+      Alert.alert('Photo error', 'Could not select a photo. Please try again.');
+    }
+  };
+
+  const takePhoto = async (): Promise<void> => {
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+      if (permission.status !== 'granted') {
+        Alert.alert('Camera access needed', 'Allow camera access to take a trip photo.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      await replaceDraftImage(result.assets[0].uri);
+    } catch {
+      Alert.alert('Photo error', 'Could not take a photo. Please try again.');
+    }
+  };
+
+  const handleAddPhoto = (): void => {
+    Alert.alert('Add a photo', 'Choose where to get your photo from.', [
+      { text: 'Gallery', onPress: () => void pickImage() },
+      { text: 'Camera', onPress: () => void takePhoto() },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
 
   const handleSubmit = (): void => {
     const error = validate(title, destination, date, rating);
@@ -39,12 +109,16 @@ export default function AddTripForm({ onAdd }: AddTripFormProps) {
       destination: destination.trim(),
       date: date.trim(),
       rating: Number(rating),
-    });
+      imageUri,
+      galleryUris: imageUri ? [imageUri] : [],
+    }, draftTripId);
 
     setTitle('');
     setDestination('');
     setDate('');
     setRating('');
+    setImageUri(undefined);
+    setDraftTripId(createTripId());
   };
 
   return (
@@ -81,6 +155,20 @@ export default function AddTripForm({ onAdd }: AddTripFormProps) {
         keyboardType="numeric"
       />
 
+      {imageUri ? (
+        <View style={styles.photoSection}>
+          <Image source={{ uri: imageUri }} style={styles.previewImage} />
+          <Pressable style={styles.changePhotoButton} onPress={handleAddPhoto}>
+            <Text style={styles.changePhotoText}>Change photo</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable style={styles.photoPicker} onPress={handleAddPhoto}>
+          <Ionicons name="camera-outline" size={28} color={Colors.primary} />
+          <Text style={styles.photoPickerText}>Add a photo</Text>
+        </Pressable>
+      )}
+
       <Pressable style={styles.addButton} onPress={handleSubmit}>
         <Text style={styles.addButtonText}>Add Trip</Text>
       </Pressable>
@@ -114,6 +202,44 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontSize: 16,
     color: Colors.textPrimary,
+  },
+  photoSection: {
+    marginBottom: 12,
+  },
+  previewImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  changePhotoButton: {
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  changePhotoText: {
+    color: Colors.primary,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  photoPicker: {
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: Colors.inputBorder,
+    borderRadius: 12,
+    paddingVertical: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 12,
+    backgroundColor: 'rgba(97, 218, 251, 0.04)',
+  },
+  photoPickerText: {
+    color: Colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
   },
   addButton: {
     backgroundColor: Colors.accent,

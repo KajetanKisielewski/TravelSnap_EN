@@ -23,6 +23,13 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen
+          name="trip/gallery/[id]"
+          options={{
+            title: 'Gallery',
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
           name="add-trip"
           options={{
             title: 'Add Trip',
