@@ -6,6 +6,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 interface TripContextValue {
   trips: Trip[];
   addTrip: (data: TripData) => void;
+  updateTrip: (id: string, data: Partial<TripData>) => void;
 }
 
 const TripContext = createContext<TripContextValue | null>(null);
@@ -31,7 +32,6 @@ const SAMPLE_TRIPS: Trip[] = [
 export function TripProvider({ children }: { children: React.ReactNode }) {
   const [trips, setTrips] = useState<Trip[]>([]);
 
-  // Uygulama açılınca AsyncStorage'dan yükle
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
       if (raw) {
@@ -42,7 +42,6 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // Trips değişince AsyncStorage'a kaydet
   useEffect(() => {
     if (trips.length > 0) {
       AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(trips));
@@ -57,8 +56,14 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
     setTrips((prev) => [newTrip, ...prev]);
   };
 
+  const updateTrip = (id: string, data: Partial<TripData>) => {
+    setTrips((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, ...data } : t))
+    );
+  };
+
   return (
-    <TripContext.Provider value={{ trips, addTrip }}>
+    <TripContext.Provider value={{ trips, addTrip, updateTrip }}>
       {children}
     </TripContext.Provider>
   );

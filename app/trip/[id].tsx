@@ -3,8 +3,8 @@ import RatingStars from '@/components/RatingStars';
 import { useTripContext } from '@/context/TripContext';
 import { useFavorites } from '@/hooks/useFavorites';
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Link, Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export default function TripDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -22,6 +22,8 @@ export default function TripDetail() {
       </View>
     );
   }
+
+  const galleryCount = trip.galleryUris?.length ?? 0;
 
   return (
     <>
@@ -44,26 +46,51 @@ export default function TripDetail() {
         }}
       />
 
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <Text style={styles.title}>{trip.title}</Text>
+      <ScrollView style={styles.container}>
+        {/* Hero image */}
+        {trip.imageUri ? (
+          <Image
+            source={{ uri: trip.imageUri }}
+            style={styles.heroImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.placeholder}>
+            <Ionicons name="image-outline" size={64} color="#4A6FA5" />
+            <Text style={styles.placeholderText}>No photo</Text>
+          </View>
+        )}
 
-        <View style={styles.row}>
-          <Ionicons name="location-outline" size={16} color="#8B95A5" />
-          <Text style={styles.destination}>{trip.destination}</Text>
+        <View style={styles.content}>
+          <Text style={styles.title}>{trip.title}</Text>
+
+          <View style={styles.row}>
+            <Ionicons name="location-outline" size={16} color="#8B95A5" />
+            <Text style={styles.destination}>{trip.destination}</Text>
+          </View>
+
+          <View style={styles.row}>
+            <Ionicons name="calendar-outline" size={14} color="#8B95A5" />
+            <Text style={styles.date}>{trip.date}</Text>
+          </View>
+
+          <View style={styles.ratingRow}>
+            <RatingStars rating={trip.rating} />
+          </View>
+
+          {/* Gallery button */}
+          <Link href={{ pathname: '/trip/gallery/[id]', params: { id: trip.id } }} asChild>
+            <Pressable style={styles.galleryBtn}>
+              <Ionicons name="images-outline" size={20} color="#61DAFB" />
+              <Text style={styles.galleryBtnText}>Gallery ({galleryCount})</Text>
+            </Pressable>
+          </Link>
+
+          {/* Back button */}
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backButtonText}>Back to list</Text>
+          </Pressable>
         </View>
-
-        <View style={styles.row}>
-          <Ionicons name="calendar-outline" size={14} color="#8B95A5" />
-          <Text style={styles.date}>{trip.date}</Text>
-        </View>
-
-        <View style={styles.ratingRow}>
-          <RatingStars rating={trip.rating} />
-        </View>
-
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Back to list</Text>
-        </Pressable>
       </ScrollView>
     </>
   );
@@ -73,6 +100,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0A1628',
+  },
+  heroImage: {
+    width: '100%',
+    height: 250,
+  },
+  placeholder: {
+    width: '100%',
+    height: 250,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1A2744',
+  },
+  placeholderText: {
+    color: '#4A6FA5',
+    marginTop: 8,
+    fontSize: 16,
   },
   content: {
     padding: 24,
@@ -99,7 +142,21 @@ const styles = StyleSheet.create({
   },
   ratingRow: {
     marginTop: 8,
-    marginBottom: 32,
+    marginBottom: 16,
+  },
+  galleryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#1A2744',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  galleryBtnText: {
+    color: '#61DAFB',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   backButton: {
     backgroundColor: '#61DAFB',
