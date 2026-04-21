@@ -8,7 +8,7 @@ export interface TripCardProps extends Trip {
   onDelete?: () => void;
 }
 
-export default function TripCard({ title, destination, date, rating, onDelete }: TripCardProps) {
+export function TripCard({ title, destination, date, rating, onDelete }: TripCardProps) {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
