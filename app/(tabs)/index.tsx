@@ -36,7 +36,7 @@ export default function HomeScreen() {
               <Pressable>
                 <TripCard
                   {...trip}
-                  onDelete={() => deleteTrip(trip.id)}
+                  onDelete={() => void deleteTrip(trip.id)}
                 />
               </Pressable>
             </Link>

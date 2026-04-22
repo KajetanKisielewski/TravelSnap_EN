@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
 import { Colors } from '@/constants/Colors';
 import type { TripData } from '@/types/trip';
-import { deleteImage, saveImageToTrip } from '@/utils/imageStorage';
+import { deleteImage, deleteTripAssets, saveImageToTrip } from '@/utils/imageStorage';
 
 interface AddTripFormProps {
   onAdd: (trip: TripData, tripId: string) => void;
@@ -33,6 +33,27 @@ export default function AddTripForm({ onAdd }: AddTripFormProps) {
   const [rating, setRating] = useState('');
   const [imageUri, setImageUri] = useState<string>();
   const [draftTripId, setDraftTripId] = useState(createTripId);
+  const latestImageUri = useRef<string | undefined>(undefined);
+  const latestDraftTripId = useRef<string>(draftTripId);
+  const didSubmit = useRef(false);
+
+  useEffect(() => {
+    latestImageUri.current = imageUri;
+  }, [imageUri]);
+
+  useEffect(() => {
+    latestDraftTripId.current = draftTripId;
+  }, [draftTripId]);
+
+  useEffect(() => {
+    return () => {
+      if (didSubmit.current || !latestImageUri.current) {
+        return;
+      }
+
+      void deleteTripAssets(latestDraftTripId.current);
+    };
+  }, []);
 
   const replaceDraftImage = async (sourceUri: string): Promise<void> => {
     const savedUri = await saveImageToTrip(sourceUri, draftTripId);
@@ -103,6 +124,8 @@ export default function AddTripForm({ onAdd }: AddTripFormProps) {
       Alert.alert('Error', error);
       return;
     }
+
+    didSubmit.current = true;
 
     onAdd({
       title: title.trim(),

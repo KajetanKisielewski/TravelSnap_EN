@@ -67,7 +67,12 @@ export default function TripDetailScreen() {
 
         <Pressable
           style={styles.galleryButton}
-          onPress={() => router.push(`/trip/gallery/${trip.id}` as never)}
+          onPress={() =>
+            router.push({
+              pathname: '/trip/gallery/[id]',
+              params: { id: trip.id },
+            })
+          }
         >
           <Ionicons name="images-outline" size={20} color={Colors.primary} />
           <Text style={styles.galleryButtonText}>Gallery ({galleryCount})</Text>

@@ -2,11 +2,12 @@ import { createContext, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import type { Trip, TripData } from '@/types/trip';
+import { deleteTripAssets } from '@/utils/imageStorage';
 
 interface TripContextValue {
   trips: Trip[];
   addTrip: (data: TripData, id?: string) => Trip;
-  deleteTrip: (id: string) => void;
+  deleteTrip: (id: string) => Promise<void>;
   addTripGalleryImage: (tripId: string, uri: string) => void;
   removeTripGalleryImage: (tripId: string, uri: string) => void;
   setTripMainImage: (tripId: string, uri?: string) => void;
@@ -31,8 +32,14 @@ export function TripProvider({ children }: TripProviderProps) {
     return newTrip;
   };
 
-  const deleteTrip = (id: string): void => {
+  const deleteTrip = async (id: string): Promise<void> => {
     setTrips((current) => current.filter((trip) => trip.id !== id));
+
+    try {
+      await deleteTripAssets(id);
+    } catch (error) {
+      console.warn(`Failed to delete stored assets for trip ${id}.`, error);
+    }
   };
 
   const addTripGalleryImage = (tripId: string, uri: string): void => {

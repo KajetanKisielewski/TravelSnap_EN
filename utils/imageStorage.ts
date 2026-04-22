@@ -53,3 +53,14 @@ export async function deleteImage(uri: string): Promise<void> {
 
   await FileSystem.deleteAsync(uri, { idempotent: true });
 }
+
+export async function deleteTripAssets(tripId: string): Promise<void> {
+  const tripFolder = getTripFolder(tripId);
+  const info = await FileSystem.getInfoAsync(tripFolder);
+
+  if (!info.exists) {
+    return;
+  }
+
+  await FileSystem.deleteAsync(tripFolder, { idempotent: true });
+}

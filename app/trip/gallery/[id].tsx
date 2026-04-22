@@ -3,9 +3,6 @@ import {
   Alert,
   Animated,
   Dimensions,
-  FlatList,
-  Image,
-  Modal,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -16,6 +13,8 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
+import GalleryGrid from '@/components/gallery/GalleryGrid';
+import GalleryViewerModal from '@/components/gallery/GalleryViewerModal';
 import { Colors } from '@/constants/Colors';
 import { useTrips } from '@/contexts/TripContext';
 import { deleteImage, saveImageToTrip } from '@/utils/imageStorage';
@@ -23,6 +22,11 @@ import { deleteImage, saveImageToTrip } from '@/utils/imageStorage';
 const GRID_GAP = 4;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const THUMBNAIL_SIZE = (SCREEN_WIDTH - 16) / 3;
+const FAB_HIDDEN_OFFSET = 96;
+const SCROLL_DIRECTION_THRESHOLD = 8;
+const VIEWER_ACTIVATION_DISTANCE = 8;
+const VIEWER_CLOSE_DISTANCE = 140;
+const VIEWER_CLOSE_VELOCITY = 1.2;
 const isString = (value: string | undefined): value is string => typeof value === 'string';
 
 export default function TripGalleryScreen() {
@@ -61,12 +65,16 @@ export default function TripGalleryScreen() {
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 8,
+        onMoveShouldSetPanResponder: (_, gestureState) =>
+          gestureState.dy > VIEWER_ACTIVATION_DISTANCE,
         onPanResponderMove: (_, gestureState) => {
           viewerTranslateY.setValue(Math.max(0, gestureState.dy));
         },
         onPanResponderRelease: (_, gestureState) => {
-          if (gestureState.dy > 140 || gestureState.vy > 1.2) {
+          if (
+            gestureState.dy > VIEWER_CLOSE_DISTANCE ||
+            gestureState.vy > VIEWER_CLOSE_VELOCITY
+          ) {
             closeViewer();
             return;
           }
@@ -104,35 +112,43 @@ export default function TripGalleryScreen() {
   };
 
   const pickImage = async (): Promise<void> => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled) {
-      await addPhotoFromUri(result.assets[0].uri);
+      if (!result.canceled) {
+        await addPhotoFromUri(result.assets[0].uri);
+      }
+    } catch {
+      Alert.alert('Photo error', 'Could not select a photo. Please try again.');
     }
   };
 
   const takePhoto = async (): Promise<void> => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
 
-    if (permission.status !== 'granted') {
-      Alert.alert('Camera access needed', 'Allow camera access to add gallery photos.');
-      return;
-    }
+      if (permission.status !== 'granted') {
+        Alert.alert('Camera access needed', 'Allow camera access to add gallery photos.');
+        return;
+      }
 
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled) {
-      await addPhotoFromUri(result.assets[0].uri);
+      if (!result.canceled) {
+        await addPhotoFromUri(result.assets[0].uri);
+      }
+    } catch {
+      Alert.alert('Photo error', 'Could not take a photo. Please try again.');
     }
   };
 
@@ -181,12 +197,10 @@ export default function TripGalleryScreen() {
     closeViewer();
   };
 
-  const handleScroll = (event: { nativeEvent: { contentOffset: { y: number } } }): void => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-
-    if (offsetY > lastScrollOffset.current + 8) {
-      animateFab(96);
-    } else if (offsetY < lastScrollOffset.current - 8) {
+  const handleScroll = (offsetY: number): void => {
+    if (offsetY > lastScrollOffset.current + SCROLL_DIRECTION_THRESHOLD) {
+      animateFab(FAB_HIDDEN_OFFSET);
+    } else if (offsetY < lastScrollOffset.current - SCROLL_DIRECTION_THRESHOLD) {
       animateFab(0);
     }
 
@@ -205,19 +219,12 @@ export default function TripGalleryScreen() {
             <Text style={styles.emptySubtitle}>Add your first!</Text>
           </View>
         ) : (
-          <FlatList
-            data={galleryUris}
-            keyExtractor={(item) => item}
-            numColumns={3}
-            contentContainerStyle={styles.listContent}
-            columnWrapperStyle={styles.row}
+          <GalleryGrid
+            photoUris={galleryUris}
+            thumbnailSize={THUMBNAIL_SIZE}
+            gap={GRID_GAP}
+            onSelect={setSelectedUri}
             onScroll={handleScroll}
-            scrollEventThrottle={16}
-            renderItem={({ item }) => (
-              <Pressable onPress={() => setSelectedUri(item)} style={styles.thumbnailPressable}>
-                <Image source={{ uri: item }} style={styles.thumbnail} />
-              </Pressable>
-            )}
           />
         )}
 
@@ -227,36 +234,14 @@ export default function TripGalleryScreen() {
           </Pressable>
         </Animated.View>
 
-        <Modal
-          visible={!!selectedUri}
-          transparent
-          animationType="fade"
-          onRequestClose={closeViewer}
-        >
-          <View style={styles.modalOverlay}>
-            <Animated.View
-              style={[styles.modalContent, { transform: [{ translateY: viewerTranslateY }] }]}
-              {...panResponder.panHandlers}
-            >
-              {selectedUri && (
-                <Image source={{ uri: selectedUri }} style={styles.viewerImage} resizeMode="contain" />
-              )}
-
-              <Pressable style={styles.closeButton} onPress={closeViewer}>
-                <Ionicons name="close" size={28} color={Colors.textPrimary} />
-              </Pressable>
-
-              <Pressable style={styles.deleteButton} onPress={handleDeleteSelected}>
-                <Ionicons name="trash-outline" size={24} color={Colors.textPrimary} />
-              </Pressable>
-
-              <Pressable style={styles.setMainButton} onPress={handleSetAsMain}>
-                <Ionicons name="image-outline" size={20} color={Colors.background} />
-                <Text style={styles.setMainButtonText}>Set as main</Text>
-              </Pressable>
-            </Animated.View>
-          </View>
-        </Modal>
+        <GalleryViewerModal
+          selectedUri={selectedUri}
+          viewerTranslateY={viewerTranslateY}
+          panResponder={panResponder}
+          onClose={closeViewer}
+          onDelete={handleDeleteSelected}
+          onSetAsMain={handleSetAsMain}
+        />
       </View>
     </>
   );
@@ -266,22 +251,6 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: Colors.background,
-  },
-  listContent: {
-    padding: GRID_GAP,
-    paddingBottom: 100,
-  },
-  row: {
-    gap: GRID_GAP,
-  },
-  thumbnailPressable: {
-    marginBottom: GRID_GAP,
-  },
-  thumbnail: {
-    width: THUMBNAIL_SIZE,
-    height: THUMBNAIL_SIZE,
-    borderRadius: 8,
-    backgroundColor: Colors.card,
   },
   centeredScreen: {
     flex: 1,
@@ -317,47 +286,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  modalContent: {
-    flex: 1,
-  },
-  viewerImage: {
-    width: '100%',
-    height: '100%',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    padding: 10,
-  },
-  deleteButton: {
-    position: 'absolute',
-    bottom: 50,
-    left: 20,
-    padding: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.14)',
-    borderRadius: 999,
-  },
-  setMainButton: {
-    position: 'absolute',
-    bottom: 46,
-    right: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: Colors.primary,
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  setMainButtonText: {
-    color: Colors.background,
-    fontWeight: '700',
   },
   backButton: {
     backgroundColor: Colors.primary,
