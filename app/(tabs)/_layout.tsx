@@ -13,7 +13,7 @@ export default function TabLayout() {
           borderTopWidth: 0,
         },
         tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: '#8B95A5',
+        tabBarInactiveTintColor: Colors.tabInactive,
       }}>
       <Tabs.Screen
         name="index"

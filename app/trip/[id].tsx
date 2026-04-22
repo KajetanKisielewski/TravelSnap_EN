@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import RatingStars from '@/components/RatingStars';
 import { Colors } from '@/constants/Colors';
@@ -18,15 +18,7 @@ export default function TripDetailScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Trip Details' }} />
-
-        <View style={styles.container}>
-          <Text style={styles.title}>Trip not found</Text>
-          <Text style={styles.subtleText}>This trip is no longer available in the current list.</Text>
-
-          <Pressable style={styles.button} onPress={() => router.back()}>
-            <Text style={styles.buttonText}>Back to list</Text>
-          </Pressable>
-        </View>
+        <TripNotFoundState onBack={() => router.back()} />
       </>
     );
   }
@@ -41,16 +33,11 @@ export default function TripDetailScreen() {
           headerStyle: { backgroundColor: Colors.background },
           headerTintColor: Colors.primary,
           headerRight: () => (
-            <Pressable
-              disabled={isLoading}
+            <FavoriteHeaderButton
+              isLoading={isLoading}
+              isFavorite={favorite}
               onPress={() => toggleFavorite(trip.id)}
-              style={styles.headerButton}>
-              <Ionicons
-                name={favorite ? 'heart' : 'heart-outline'}
-                size={22}
-                color={favorite ? '#FF5A5F' : Colors.textSecondary}
-              />
-            </Pressable>
+            />
           ),
         }}
       />
@@ -77,6 +64,47 @@ export default function TripDetailScreen() {
         </Pressable>
       </View>
     </>
+  );
+}
+
+function FavoriteHeaderButton({
+  isLoading,
+  isFavorite,
+  onPress,
+}: {
+  isLoading: boolean;
+  isFavorite: boolean;
+  onPress: () => void;
+}) {
+  if (isLoading) {
+    return (
+      <View style={styles.headerButton}>
+        <ActivityIndicator size="small" color={Colors.textSecondary} />
+      </View>
+    );
+  }
+
+  return (
+    <Pressable onPress={onPress} style={styles.headerButton}>
+      <Ionicons
+        name={isFavorite ? 'heart' : 'heart-outline'}
+        size={22}
+        color={isFavorite ? Colors.accent : Colors.textSecondary}
+      />
+    </Pressable>
+  );
+}
+
+function TripNotFoundState({ onBack }: { onBack: () => void }) {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Trip not found</Text>
+      <Text style={styles.subtleText}>This trip is no longer available in the current list.</Text>
+
+      <Pressable style={styles.button} onPress={onBack}>
+        <Text style={styles.buttonText}>Back to list</Text>
+      </Pressable>
+    </View>
   );
 }
 

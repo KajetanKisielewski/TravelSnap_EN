@@ -6,6 +6,7 @@ export const Colors = {
   primary: '#61DAFB',
   textPrimary: '#FFFFFF',
   textSecondary: '#8B95A5',
+  tabInactive: '#8B95A5',
   inputBg: '#243352',
   inputBorder: '#2E4066',
   border: '#2E3A50',

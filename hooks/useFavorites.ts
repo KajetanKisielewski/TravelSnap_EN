@@ -1,3 +1,4 @@
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -37,18 +38,26 @@ export function useFavorites() {
     };
   }, []);
 
-  const persistFavorites = useCallback(async (nextFavorites: string[]) => {
+  const persistFavorites = useCallback(async (nextFavorites: string[], previousFavorites: string[]) => {
     setFavoriteIds(nextFavorites);
-    await AsyncStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(nextFavorites));
+
+    try {
+      await AsyncStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(nextFavorites));
+    } catch (error) {
+      setFavoriteIds(previousFavorites);
+      console.warn('Failed to persist favorites.', error);
+      Alert.alert('Could not save favorite', 'Please try again.');
+    }
   }, []);
 
   const toggleFavorite = useCallback(
     async (tripId: string) => {
+      const previousFavorites = favoriteIds;
       const nextFavorites = favoriteIds.includes(tripId)
         ? favoriteIds.filter((id) => id !== tripId)
         : [...favoriteIds, tripId];
 
-      await persistFavorites(nextFavorites);
+      await persistFavorites(nextFavorites, previousFavorites);
     },
     [favoriteIds, persistFavorites]
   );
