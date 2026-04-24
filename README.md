@@ -1,186 +1,219 @@
-# Lecture 6 — Assignment: Photos and Trip Gallery
+# Task 7 - AsyncStorage, CRUD, and Context API in TravelSnap
  
 ## Goal
  
-Add full photo support to TravelSnap: picking from gallery, capturing with camera, displaying in cards and detail views, persistent on-disk storage, and a gallery screen with a grid, full-screen viewer, and deletion.
+Implement persistent trip storage using AsyncStorage, full CRUD operations, and a global state layer with the Context API. When you are done, trips will survive app restarts, and every screen will have direct access to trip data without prop drilling.
  
 ---
  
 ## Design Spec
  
-### Updated data model
+### Architecture
  
 ```
-TripData {
+TravelSnap/
+  context/
+    TripContext.tsx       <-- NEW: createContext + TripProvider + useTrips
+  utils/
+    tripStorage.ts        <-- NEW: saveTrips() + loadTrips()
+    imageStorage.ts       (existing)
+  types/
+    trip.ts               (unchanged)
+  components/
+    TripCard.tsx           (unchanged)
+    AddTripForm.tsx        (unchanged)
+    ScreenHeader.tsx       (unchanged)
+    RatingStars.tsx        (unchanged)
+    EmptyState.tsx         (unchanged)
+  app/
+    _layout.tsx            <-- CHANGED: wraps Stack in TripProvider
+    (tabs)/
+      _layout.tsx          (unchanged)
+      index.tsx            <-- CHANGED: uses useTrips() instead of useState
+      profile.tsx          <-- CHANGED: uses useTrips() for stats display
+    trip/
+      [id].tsx             <-- CHANGED: uses useTrips(), adds delete button
+      gallery/
+        [id].tsx           (may use useTrips() to update gallery)
+```
+ 
+### Interfaces (unchanged)
+ 
+```typescript
+// types/trip.ts — existing, no modifications
+interface TripData {
   title: string;
   destination: string;
   date: string;
   rating: number;
-  imageUri?: string;       // main trip photo
-  galleryUris?: string[];  // additional photos
+  imageUri?: string;
+  galleryUris?: string[];
+}
+ 
+interface Trip extends TripData {
+  id: string;
 }
 ```
  
-### AddTripForm — photo picker
+### UI Style
  
-- New area in the form: dashed border, `camera-outline` icon, text "Add a photo"
-- After selecting a photo: preview (Image, height 200, borderRadius 8) + "Change photo" button
-- Tapping opens an `Alert` with three options: Gallery, Camera, Cancel
-- The selected photo is copied to `FileSystem.documentDirectory + 'trips/'` before saving
-- The URI from documentDirectory (not from cache!) goes into `imageUri` of the new trip
-### TripCard — photo above content
- 
-- If `trip.imageUri` exists: `<Image>` at the top of the card, `width: '100%'`, `height: 180`, `borderTopLeftRadius: 12`, `borderTopRightRadius: 12`
-- If no photo: card looks the same as before (no changes)
-- If `trip.galleryUris.length > 0`: small `images` icon with count in the card corner
-### TripDetail — hero image
- 
-- If `trip.imageUri` exists: large image at the top (`height: 250`, `width: '100%'`)
-- If missing: placeholder with `image-outline` icon (size 64, color `#4A6FA5`) and "No photo" text, background `#1A2744`
-- Below hero image (or placeholder): "Gallery (N)" button with `images-outline` icon, linking to the gallery screen
-### Gallery screen — `app/trip/gallery/[id].tsx`
- 
-- **Header**: trip title + photo count (e.g. "Tokyo — 5 photos")
-- **Grid**: `FlatList` with `numColumns={3}`, 4px gap, square thumbnails (1:1)
-- **Empty state**: `images-outline` icon + text "No photos yet — add your first!"
-- **FAB**: circular button in the bottom-right corner — `position: 'absolute'`, `bottom: 20`, `right: 20`, `width: 56`, `height: 56`, `borderRadius: 28`, background `#61DAFB`, `camera-outline` icon
-- FAB opens an `Alert` with choices: Gallery, Camera, Cancel
-- Background: `Colors.background` (dark theme)
-### Full-screen viewer — Modal
- 
-- Tapping a grid photo opens a `<Modal>` with:
-  - Black background, `animationType="fade"`
-  - `<Image>` with `resizeMode="contain"` filling the screen
-  - Close button (X) — `position: 'absolute'`, `top: 50`, `right: 20`
-  - Delete button (trash) — `position: 'absolute'`, `bottom: 50`, `left: 20`
-  - Deletion requires `Alert.alert` confirmation → `FileSystem.deleteAsync(uri)` → update state
-### Image storage
- 
-- Every photo is copied to `FileSystem.documentDirectory + 'trips/{tripId}/'`
-- One folder per trip (not a shared one)
-- When deleting — `FileSystem.deleteAsync()` removes the file from disk
+- Dark theme: `#0B1622` background, `#121E2E` cards, `#61DAFB` accents
+- Delete button: red (`#E94560`), `trash-outline` Ionicons icon
+- Loading indicator: React Native `ActivityIndicator`, color `#61DAFB`
+- Confirmation alert: native `Alert.alert()` with two buttons
 ---
  
 ## Steps
  
-### Step 0 - Installation
+### Step 0 - Install AsyncStorage
  
-Install the required packages:
+Install the library in your project:
  
 ```bash
-npx expo install expo-image-picker expo-file-system
+npx expo install @react-native-async-storage/async-storage
 ```
-
----
  
-### Step 1 - Extend the TripData type
- 
-In `types/trip.ts`, add two new optional fields to the `TripData` interface:
- 
-- `imageUri?: string` - the main trip photo
-- `galleryUris?: string[]` - an array of additional photos
-Both fields are optional (`?`) - existing trips without photos keep working.
- 
----
-
-### Step 2 - Utility: file management
- 
-Create `utils/imageStorage.ts` with three functions:
- 
-- `ensureTripFolder(tripId: string): Promise<string>` - creates `documentDirectory/trips/{tripId}/` if it doesn't exist, returns the path. Use `FileSystem.getInfoAsync` + `FileSystem.makeDirectoryAsync`.
-- `saveImageToTrip(uri: string, tripId: string): Promise<string>` - copies the file from cache to the trip folder (`FileSystem.copyAsync`), returns the new URI.
-- `deleteImage(uri: string): Promise<void>` - removes the file from disk (`FileSystem.deleteAsync`).
-
----
-
-### Step 3 - pickImage and takePhoto
- 
-In `AddTripForm.tsx`:
- 
-- Add state: `const [imageUri, setImageUri] = useState<string>()`
-- Write a `pickImage` function - calls `ImagePicker.launchImageLibraryAsync` with `mediaTypes: ['images']`, `allowsEditing: true`, `aspect: [16, 9]`, `quality: 0.8`. If not canceled - copies the photo via `saveImageToTrip` and stores the URI in state.
-- Write a `takePhoto` function - first calls `ImagePicker.requestCameraPermissionsAsync()`. If `status !== 'granted'` → `Alert` and return. Otherwise `launchCameraAsync`, copy and save as above.
-- Add `handleAddPhoto` - `Alert.alert` with three buttons: Gallery (`pickImage`), Camera (`takePhoto`), Cancel.
-
----
-
-### Step 4 - Image preview in the form
- 
-In the `AddTripForm.tsx` render:
- 
-- If `imageUri` exists: `<Image source={{ uri: imageUri }}` with `preview` style (width 100%, height 200, borderRadius 8) + `<Pressable>` "Change photo" (calls `handleAddPhoto`)
-- If missing: `<Pressable>` with dashed border, `camera-outline` icon, and "Add a photo" text (calls `handleAddPhoto`)
-- When submitting the form, pass `imageUri` in the `TripData` object
-
----
-
-### Step 5 - Photo in TripCard
- 
-In `components/TripCard.tsx`:
- 
-- Import `Image` from `react-native`
-- In the render, before the card content: `{trip.imageUri && <Image source={{ uri: trip.imageUri }} style={styles.cardImage} />}`
-- `cardImage` style: `width: '100%'`, `height: 180`, `borderTopLeftRadius: 12`, `borderTopRightRadius: 12`
-
----
-
-### Step 6 - Hero image in TripDetail
- 
-In `app/trip/[id].tsx`:
- 
-- If `trip.imageUri` exists: `<Image>` with `heroImage` style (width 100%, height 250)
-- If missing: `<View style={styles.placeholder}>` with `image-outline` icon (size 64, color `#4A6FA5`) and "No photo" text
-- Below: `<Link href={'/trip/gallery/${trip.id}'}` with "Gallery (N)" text and `images-outline` icon
-
----
-
-### Step 7 - Gallery screen
- 
-Create `app/trip/gallery/[id].tsx`:
- 
-- Read `id` from `useLocalSearchParams`
-- Find the trip by id (from context or hardcoded data)
-- `FlatList` with `numColumns={3}` - each item is a `<Pressable>` wrapping a square `<Image>`
-- Item width: `(Dimensions.get('window').width - 16) / 3` (4px gap × 4)
-- Empty state when no photos: icon + text
-
----
-
-### Step 8 - FAB + adding photos to gallery
- 
-- Add a circular FAB button (position absolute, bottom 20, right 20)
-- `onPress` → `Alert` with Gallery/Camera/Cancel
-- After selecting a photo: `saveImageToTrip(uri, tripId)` → add the URI to `galleryUris` in state
-- The grid refreshes automatically
-
----
-
-### Step 9 - Full-screen modal with deletion
- 
-- Tapping a grid photo sets state `selectedUri`
-- `<Modal visible={!!selectedUri}>` with black background
-- `<Image>` with `resizeMode="contain"` filling the screen
-- X button (close) - top-right corner
-- Trash button - bottom-left corner → `Alert.alert` confirmation → `deleteImage(uri)` → update `galleryUris` in state → close modal
-
----
-
-### Step 10 - Badge in TripCard
- 
-If `trip.galleryUris && trip.galleryUris.length > 0`, show a small `images` icon + count in the card corner (e.g. "3").
+Verify the app still runs after installation.
  
 ---
  
-### Step 11 - Swipe to dismiss
+### Step 1 - The tripStorage module
  
-Add `PanResponder` or `react-native-gesture-handler` - swiping down closes the viewer modal.
+Create `utils/tripStorage.ts` with two functions:
  
-### Step 12 - Set as main photo
+**saveTrips(trips: Trip[]): Promise\<void\>**
+- Accepts an array of trips
+- Serializes it to JSON (`JSON.stringify`)
+- Stores it under the key `'travelsnap_trips'` in AsyncStorage
+- Wrapped in try/catch - errors are logged, never crash the app
+**loadTrips(): Promise\<Trip[]\>**
+- Reads the value from AsyncStorage under key `'travelsnap_trips'`
+- If a value exists - deserializes (`JSON.parse`) and returns it
+- If missing (null) - returns an empty array `[]`
+- Wrapped in try/catch - returns `[]` on error
+---
  
-Add a "Set as main" button in the modal. When tapped: `trip.imageUri` = the selected gallery URI. This photo then appears as the hero in TripCard and TripDetail.
+### Step 2 - TripContext: interface and createContext
  
-### Step 13 - Animated FAB
+Create `context/TripContext.tsx`.
  
-Add an `Animated.Value` to the FAB: scrolling down hides the button (translateY), scrolling up shows it. Use `onScroll` from FlatList.
+Define a `TripContextType` interface:
+- `trips: Trip[]` - the list of trips
+- `loading: boolean` - whether data is still loading
+- `addTrip: (data: TripData) => Promise<void>`
+- `deleteTrip: (id: string) => Promise<void>`
+- `updateTrip: (id: string, data: Partial<TripData>) => Promise<void>`
+Call `createContext<TripContextType | null>(null)`.
  
+Create a custom `useTrips()` hook:
+- Calls `useContext(TripContext)`
+- If the context is null - throws an error with a clear message
+- Returns the context (TypeScript now knows it is not null)
+---
+ 
+### Step 3 - TripProvider: state and loading
+ 
+In the same file `context/TripContext.tsx`, create a `TripProvider` component:
+ 
+- `useState<Trip[]>([])` for the trip list
+- `useState(true)` for the loading flag
+- `useEffect` with `[]` - loads data on mount:
+  - Calls `loadTrips()` from tripStorage
+  - Sets the result with `setTrips`
+  - Sets `setLoading(false)`
+---
+ 
+### Step 4 - CRUD in TripProvider
+ 
+Add three functions inside TripProvider:
+ 
+**addTrip(data: TripData)**
+1. Create a new Trip object: `{ ...data, id: Date.now().toString() }`
+2. Build a new array: `[...trips, newTrip]`
+3. `setTrips(updated)`
+4. `await saveTrips(updated)`
+**deleteTrip(id: string)**
+1. Filter: `trips.filter(t => t.id !== id)`
+2. `setTrips(updated)`
+3. `await saveTrips(updated)`
+**updateTrip(id: string, data: Partial\<TripData\>)**
+1. Map: `trips.map(t => t.id === id ? { ...t, ...data } : t)`
+2. `setTrips(updated)`
+3. `await saveTrips(updated)`
+Return from TripProvider: `<TripContext.Provider value={{ trips, loading, addTrip, deleteTrip, updateTrip }}>{children}</TripContext.Provider>`
+ 
+---
+ 
+### Step 5 - App integration
+ 
+**app/_layout.tsx:**
+- Import `TripProvider`
+- Wrap `<Stack>` inside `<TripProvider>...</TripProvider>`
+**app/(tabs)/index.tsx (HomeScreen):**
+- Remove the local `useState<Trip[]>`
+- Remove the local `useEffect` for loading
+- Add: `const { trips, addTrip, loading } = useTrips()`
+- If `loading` - show `<ActivityIndicator>`
+- Pass `addTrip` to `AddTripForm` as `onSubmit`
+**app/(tabs)/profile.tsx:**
+- Add: `const { trips } = useTrips()`
+- Display `trips.length` in the stats section
+---
+ 
+### Step 6 - Trip deletion on TripDetail
+ 
+**app/trip/[id].tsx:**
+- Add: `const { trips, deleteTrip } = useTrips()`
+- Find the trip: `trips.find(t => t.id === id)`
+- Add a "Delete trip" button (red, trash-outline icon)
+- On press: `Alert.alert()` asking "Are you sure you want to delete this trip?"
+  - "Cancel" button - does nothing
+  - "Delete" button (destructive) - `await deleteTrip(id); router.back()`
+---
+ 
+### Step 7 - Persistence testing
+ 
+1. Launch the app
+2. Add 3 trips using the form
+3. Verify they appear in the list
+4. Kill the Expo server (Ctrl+C)
+5. Restart (`npx expo start`)
+6. Verify all 3 trips are still in the list
+7. Delete one trip from TripDetail
+8. Restart - verify the deleted trip does not reappear
+---
+ 
+### Step 8 - Loading state with ActivityIndicator
+ 
+Make sure that:
+- While data is loading, an `ActivityIndicator` (spinner) is visible
+- The spinner disappears once data is loaded
+- Spinner color: `#61DAFB` (React Blue)
+- Spinner is centered on screen (flex: 1, justifyContent: center, alignItems: center)
+---
+ 
+### Step 9 - Delete confirmation alert
+ 
+Use `Alert.alert()` with three arguments:
+- Title: "Delete Trip"
+- Message: "This action cannot be undone. Are you sure?"
+- Buttons: [{text: "Cancel", style: "cancel"}, {text: "Delete", style: "destructive", onPress: handleDelete}]
+---
+ 
+### Step 10 - Trip editing screen
+ 
+Create a new screen at `app/trip/edit/[id].tsx`:
+- A form with fields: title, destination, date, rating
+- Fields pre-filled with the current trip data
+- A "Save Changes" button that calls `updateTrip(id, formData)`
+- After saving: `router.back()` navigates back to TripDetail
+- Link to edit: a button with `create-outline` icon on TripDetail
+---
+ 
+### Step 11 - Gallery sync with context
+ 
+Modify the gallery screen (`app/trip/gallery/[id].tsx`):
+- After adding a photo, call `updateTrip(id, { galleryUris: [...current, newUri] })`
+- After deleting a photo, call `updateTrip(id, { galleryUris: filtered })`
+- This ensures gallery changes are automatically persisted via AsyncStorage
 ---
