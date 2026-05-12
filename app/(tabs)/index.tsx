@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Pressable, View } from 'react-native';
+import { ScrollView, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,13 +34,7 @@ export default function HomeScreen() {
               asChild
             >
               <Pressable>
-                <TripCard
-                  title={trip.title}
-                  destination={trip.destination}
-                  date={trip.date}
-                  rating={trip.rating}
-                  onDelete={() => deleteTrip(trip.id)}
-                />
+                <TripCard {...trip} onDelete={() => deleteTrip(trip.id)} />
               </Pressable>
             </Link>
           ))

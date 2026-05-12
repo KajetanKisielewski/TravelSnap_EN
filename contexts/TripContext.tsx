@@ -5,8 +5,9 @@ import type { Trip, TripData } from '@/types/trip';
 
 interface TripContextValue {
   trips: Trip[];
-  addTrip: (data: TripData) => void;
+  addTrip: (data: TripData, id?: string) => void;
   deleteTrip: (id: string) => void;
+  updateTrip: (id: string, data: Partial<TripData>) => void;
 }
 
 const TripContext = createContext<TripContextValue | null>(null);
@@ -18,8 +19,8 @@ interface TripProviderProps {
 export function TripProvider({ children }: TripProviderProps) {
   const [trips, setTrips] = useState<Trip[]>([]);
 
-  const addTrip = (data: TripData): void => {
-    const newTrip: Trip = { id: Date.now().toString(), ...data };
+  const addTrip = (data: TripData, id?: string): void => {
+    const newTrip: Trip = { id: id ?? Date.now().toString(), ...data };
     setTrips((current) => [newTrip, ...current]);
   };
 
@@ -27,8 +28,14 @@ export function TripProvider({ children }: TripProviderProps) {
     setTrips((current) => current.filter((trip) => trip.id !== id));
   };
 
+  const updateTrip = (id: string, data: Partial<TripData>): void => {
+    setTrips((current) =>
+      current.map((trip) => (trip.id === id ? { ...trip, ...data } : trip))
+    );
+  };
+
   return (
-    <TripContext.Provider value={{ trips, addTrip, deleteTrip }}>
+    <TripContext.Provider value={{ trips, addTrip, deleteTrip, updateTrip }}>
       {children}
     </TripContext.Provider>
   );
