@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { Colors } from '@/constants/Colors';
 import type { TripData } from '@/types/trip';
 
 interface AddTripFormProps {
@@ -9,11 +10,15 @@ interface AddTripFormProps {
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
-const validate = (title: string, destination: string, date: string, rating: string): string | null => {
+const validate = (
+  title: string,
+  destination: string,
+  date: string,
+  rating: string
+): string | null => {
   if (!title.trim() || !destination.trim() || !date.trim() || !rating.trim())
     return 'All fields are required!';
-  if (!DATE_REGEX.test(date))
-    return 'Date must be in YYYY-MM-DD format!';
+  if (!DATE_REGEX.test(date)) return 'Date must be in YYYY-MM-DD format!';
   const ratingNum = Number(rating);
   if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5)
     return 'Rating must be a number between 1 and 5!';
@@ -53,24 +58,29 @@ export default function AddTripForm({ onAdd }: AddTripFormProps) {
       <TextInput
         style={styles.input}
         placeholder="Title"
+        placeholderTextColor={Colors.textSecondary}
         value={title}
         onChangeText={setTitle}
       />
       <TextInput
         style={styles.input}
         placeholder="Destination"
+        placeholderTextColor={Colors.textSecondary}
         value={destination}
         onChangeText={setDestination}
       />
       <TextInput
         style={styles.input}
         placeholder="Date (YYYY-MM-DD)"
+        placeholderTextColor={Colors.textSecondary}
         value={date}
         onChangeText={setDate}
+        autoCapitalize="none"
       />
       <TextInput
         style={styles.input}
         placeholder="Rating (1-5)"
+        placeholderTextColor={Colors.textSecondary}
         value={rating}
         onChangeText={setRating}
         keyboardType="numeric"
@@ -85,38 +95,40 @@ export default function AddTripForm({ onAdd }: AddTripFormProps) {
 
 const styles = StyleSheet.create({
   form: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.card,
     padding: 16,
     borderRadius: 16,
-    marginBottom: 24,
-    elevation: 2,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   formTitle: {
+    color: Colors.textPrimary,
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
-    color: '#1a1a2e',
   },
   input: {
+    backgroundColor: Colors.inputBg,
+    borderColor: Colors.inputBorder,
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
     fontSize: 16,
+    color: Colors.textPrimary,
   },
   addButton: {
-    backgroundColor: '#e94560',
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: Colors.accent,
+    padding: 14,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
   addButtonText: {
-    color: '#fff',
+    color: Colors.textPrimary,
     fontWeight: 'bold',
     fontSize: 16,
   },
