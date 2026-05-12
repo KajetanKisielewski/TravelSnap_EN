@@ -1,11 +1,19 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Link, Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import RatingStars from '@/components/RatingStars';
+import { Colors } from '@/constants/Colors';
 import { useTrips } from '@/contexts/TripContext';
 import { useFavorites } from '@/hooks/useFavorites';
-import { Colors } from '@/constants/Colors';
 
 export default function TripDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -30,7 +38,7 @@ export default function TripDetailScreen() {
     );
   }
 
-  const { title, destination, date, rating } = trip;
+  const { title, destination, date, rating, imageUri, galleryUris = [] } = trip;
 
   return (
     <>
@@ -54,7 +62,26 @@ export default function TripDetailScreen() {
         }}
       />
 
-      <View style={styles.screen}>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.heroImage} />
+        ) : (
+          <View style={styles.placeholder}>
+            <Ionicons name="image-outline" size={64} color="#4A6FA5" />
+            <Text style={styles.placeholderText}>No photo</Text>
+          </View>
+        )}
+
+        <Link
+          href={{ pathname: '/trip/gallery/[id]', params: { id } }}
+          asChild
+        >
+          <Pressable style={styles.galleryButton}>
+            <Ionicons name="images-outline" size={18} color={Colors.primary} />
+            <Text style={styles.galleryButtonText}>Gallery ({galleryUris.length})</Text>
+          </Pressable>
+        </Link>
+
         <Text style={styles.tripTitle}>{title}</Text>
 
         <View style={styles.metaRow}>
@@ -74,7 +101,7 @@ export default function TripDetailScreen() {
         <Pressable style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backButtonText}>Back to list</Text>
         </Pressable>
-      </View>
+      </ScrollView>
     </>
   );
 }
@@ -83,13 +110,48 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: Colors.background,
-    padding: 24,
+  },
+  content: {
+    padding: 16,
+    gap: 4,
+  },
+  heroImage: {
+    width: '100%',
+    height: 250,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  placeholder: {
+    width: '100%',
+    height: 250,
+    backgroundColor: '#1A2744',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  placeholderText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+  },
+  galleryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  galleryButtonText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   tripTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: Colors.textPrimary,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   metaRow: {
     flexDirection: 'row',
@@ -127,5 +189,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
     marginBottom: 24,
+    padding: 24,
   },
 });
