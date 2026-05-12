@@ -1,13 +1,15 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import type { Trip, TripData } from '@/types/trip';
+import { loadTrips, saveTrips } from '@/utils/tripStorage';
 
 interface TripContextValue {
   trips: Trip[];
-  addTrip: (data: TripData, id: string) => void;
-  updateTrip: (id: string, patch: Partial<TripData>) => void;
-  deleteTrip: (id: string) => void;
+  loading: boolean;
+  addTrip: (data: TripData, id?: string) => Promise<void>;
+  updateTrip: (id: string, patch: Partial<TripData>) => Promise<void>;
+  deleteTrip: (id: string) => Promise<void>;
 }
 
 const TripContext = createContext<TripContextValue | null>(null);
@@ -18,24 +20,38 @@ interface TripProviderProps {
 
 export function TripProvider({ children }: TripProviderProps) {
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const addTrip = (data: TripData, id: string): void => {
-    const newTrip: Trip = { id, ...data };
-    setTrips((current) => [newTrip, ...current]);
+  useEffect(() => {
+    const hydrate = async (): Promise<void> => {
+      const stored = await loadTrips();
+      setTrips(stored);
+      setLoading(false);
+    };
+    void hydrate();
+  }, []);
+
+  const addTrip = async (data: TripData, id?: string): Promise<void> => {
+    const newTrip: Trip = { id: id ?? Date.now().toString(), ...data };
+    const updated = [newTrip, ...trips];
+    setTrips(updated);
+    await saveTrips(updated);
   };
 
-  const updateTrip = (id: string, patch: Partial<TripData>): void => {
-    setTrips((current) =>
-      current.map((trip) => (trip.id === id ? { ...trip, ...patch } : trip))
-    );
+  const updateTrip = async (id: string, patch: Partial<TripData>): Promise<void> => {
+    const updated = trips.map((trip) => (trip.id === id ? { ...trip, ...patch } : trip));
+    setTrips(updated);
+    await saveTrips(updated);
   };
 
-  const deleteTrip = (id: string): void => {
-    setTrips((current) => current.filter((trip) => trip.id !== id));
+  const deleteTrip = async (id: string): Promise<void> => {
+    const updated = trips.filter((trip) => trip.id !== id);
+    setTrips(updated);
+    await saveTrips(updated);
   };
 
   return (
-    <TripContext.Provider value={{ trips, addTrip, updateTrip, deleteTrip }}>
+    <TripContext.Provider value={{ trips, loading, addTrip, updateTrip, deleteTrip }}>
       {children}
     </TripContext.Provider>
   );
