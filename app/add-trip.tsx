@@ -11,8 +11,8 @@ export default function AddTripScreen() {
   const { addTrip } = useTrips();
   const router = useRouter();
 
-  const handleAdd = (data: TripData, id: string): void => {
-    addTrip(data, id);
+  const handleAdd = async (data: TripData, id: string): Promise<void> => {
+    await addTrip(data, id);
     router.back();
   };
 

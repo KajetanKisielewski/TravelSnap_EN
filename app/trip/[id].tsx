@@ -1,20 +1,43 @@
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Link, Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import RatingStars from '@/components/RatingStars';
+import { Colors } from '@/constants/Colors';
 import { useTrips } from '@/contexts/TripContext';
 import { useFavorites } from '@/hooks/useFavorites';
-import { Colors } from '@/constants/Colors';
 
 export default function TripDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { trips } = useTrips();
+  const { trips, deleteTrip } = useTrips();
   const router = useRouter();
   const { isLoading, isFavorite, toggleFavorite } = useFavorites();
 
   const trip = trips.find((t) => t.id === id);
   const favorited = isFavorite(id);
+
+  const handleDelete = (): void => {
+    Alert.alert('Delete Trip', 'This action cannot be undone. Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteTrip(id);
+          router.back();
+        },
+      },
+    ]);
+  };
 
   if (!trip) {
     return (
@@ -40,11 +63,11 @@ export default function TripDetailScreen() {
           title,
           headerRight: () =>
             isLoading ? (
-              <View style={styles.heartButton}>
+              <View style={styles.headerButton}>
                 <ActivityIndicator size="small" color={Colors.textSecondary} />
               </View>
             ) : (
-              <Pressable onPress={() => toggleFavorite(id)} style={styles.heartButton}>
+              <Pressable onPress={() => toggleFavorite(id)} style={styles.headerButton}>
                 <Ionicons
                   name={favorited ? 'heart' : 'heart-outline'}
                   size={24}
@@ -66,15 +89,22 @@ export default function TripDetailScreen() {
         )}
 
         <View style={styles.body}>
-          <Pressable
-            style={styles.galleryButton}
-            onPress={() =>
-              router.push({ pathname: '/trip/gallery/[id]', params: { id } })
-            }
-          >
-            <Ionicons name="images-outline" size={20} color={Colors.primary} />
-            <Text style={styles.galleryButtonText}>Gallery ({galleryCount})</Text>
-          </Pressable>
+          <View style={styles.actionRow}>
+            <Pressable
+              style={styles.galleryButton}
+              onPress={() => router.push({ pathname: '/trip/gallery/[id]', params: { id } })}
+            >
+              <Ionicons name="images-outline" size={20} color={Colors.primary} />
+              <Text style={styles.galleryButtonText}>Gallery ({galleryCount})</Text>
+            </Pressable>
+
+            <Link href={{ pathname: '/trip/edit/[id]', params: { id } }} asChild>
+              <Pressable style={styles.editButton}>
+                <Ionicons name="create-outline" size={20} color={Colors.primary} />
+                <Text style={styles.editButtonText}>Edit</Text>
+              </Pressable>
+            </Link>
+          </View>
 
           <Text style={styles.tripTitle}>{title}</Text>
 
@@ -94,6 +124,11 @@ export default function TripDetailScreen() {
 
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <Text style={styles.backButtonText}>Back to list</Text>
+          </Pressable>
+
+          <Pressable style={styles.deleteButton} onPress={handleDelete}>
+            <Ionicons name="trash-outline" size={18} color={Colors.textPrimary} />
+            <Text style={styles.deleteButtonText}>Delete trip</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -125,6 +160,11 @@ const styles = StyleSheet.create({
   body: {
     padding: 24,
   },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
   galleryButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -133,10 +173,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: Colors.card,
     borderRadius: 10,
-    marginBottom: 20,
-    alignSelf: 'flex-start',
   },
   galleryButtonText: {
+    color: Colors.primary,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: Colors.card,
+    borderRadius: 10,
+  },
+  editButtonText: {
     color: Colors.primary,
     fontSize: 15,
     fontWeight: '600',
@@ -169,13 +221,28 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     alignItems: 'center',
+    marginBottom: 12,
   },
   backButtonText: {
     color: Colors.background,
     fontWeight: 'bold',
     fontSize: 16,
   },
-  heartButton: {
+  deleteButton: {
+    flexDirection: 'row',
+    backgroundColor: Colors.accent,
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  deleteButtonText: {
+    color: Colors.textPrimary,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  headerButton: {
     marginRight: 8,
     padding: 4,
   },
@@ -183,5 +250,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
     marginBottom: 24,
+    padding: 24,
   },
 });
