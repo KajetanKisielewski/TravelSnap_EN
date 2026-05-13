@@ -17,6 +17,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 
 interface AddTripFormProps {
+  // REVIEW: This callback currently uses 5 positional arguments.
+  // Why it is risky: argument order mistakes are easy and adding new fields
+  // requires refactoring every call site.
+  // How to fix: prefer `onAdd: (trip: TripData) => void` and pass one typed object.
   onAdd: (
     title: string,
     destination: string,
@@ -54,6 +58,9 @@ export default function AddTripForm({
       );
 
     if (!result.canceled) {
+      // REVIEW: Picker URI can be temporary and may stop working after restart.
+      // How to fix: persist the file (for example with saveImageToTrip) and store
+      // the persistent URI in state instead of raw picker URI.
       setImageUri(
         result.assets[0].uri
       );
@@ -115,6 +122,10 @@ export default function AddTripForm({
   };
 
   const handleSubmit = () => {
+    // REVIEW: This check does not trim text values.
+    // Why it is a bug: strings like "   " are truthy, so empty-looking input
+    // can pass validation.
+    // How to fix: validate `!title.trim()` etc. and pass trimmed values to `onAdd`.
     if (
       !title ||
       !destination ||
@@ -132,6 +143,10 @@ export default function AddTripForm({
     const numericRating =
       Number(rating);
 
+    // REVIEW: Missing NaN guard.
+    // Why it is a bug: Number("abc") => NaN, and both comparisons below are false,
+    // so invalid non-numeric input can pass.
+    // How to fix: include `isNaN(numericRating)` in this condition.
     if (
       numericRating < 1 ||
       numericRating > 5
@@ -156,6 +171,9 @@ export default function AddTripForm({
       return;
     }
 
+    // REVIEW: Values are forwarded without trim().
+    // Why it is risky: whitespace-only input may be persisted as real data.
+    // How to fix: pass `title.trim()`, `destination.trim()`, `date.trim()`.
     onAdd(
       title,
       destination,

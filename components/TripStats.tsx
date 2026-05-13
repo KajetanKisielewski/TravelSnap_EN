@@ -1,3 +1,5 @@
+// REVIEW: React default import is unused here with modern JSX transform.
+// How to fix: remove it if linter reports unused import.
 import React from 'react';
 
 import {
@@ -8,6 +10,9 @@ import {
 
 import { Colors } from '../constants/Colors';
 
+// REVIEW: Local Trip type duplicates shared domain model.
+// Why it is risky: this can drift from `types/trip.ts` and create type mismatch.
+// How to fix: import `Trip` from `../types/trip` and reuse one source of truth.
 interface Trip {
   id: string;
   title: string;
@@ -23,6 +28,9 @@ interface TripStatsProps {
 export default function TripStats({
   trips,
 }: TripStatsProps) {
+  // REVIEW: Same stats logic is also calculated in profile screen.
+  // Why it matters: duplicated business logic is harder to keep consistent.
+  // How to fix: extract to shared utility or `useTripStats` hook.
   const avgRating =
     trips.length > 0
       ? (

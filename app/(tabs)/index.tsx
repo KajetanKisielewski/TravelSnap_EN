@@ -47,6 +47,9 @@ export default function HomeScreen() {
 
       <ScrollView
         style={styles.container}
+        // REVIEW: ScrollView renders all cards at once.
+        // Why it can be a problem: large trip lists will hurt performance/memory.
+        // How to fix: use FlatList for virtualization when list size grows.
         contentContainerStyle={
           styles.contentContainer
         }
@@ -82,11 +85,16 @@ export default function HomeScreen() {
             <Link
               key={trip.id}
               href={{
+                // REVIEW: `as any` hides route typing errors.
+                // How to fix: use proper Expo Router typed route instead of casting.
                 pathname:
                   '/trip/[id]' as any,
 
                 params: {
                   id: trip.id,
+                  // REVIEW: These params are currently unused in trip detail screen
+                  // (screen resolves trip by id from context), so this is dead payload.
+                  // How to fix: pass only `id` unless detail screen starts using others.
                   title: trip.title,
                   destination:
                     trip.destination,

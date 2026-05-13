@@ -46,6 +46,11 @@ export default function TripCard({
         {onDelete && (
           <Pressable
             style={styles.deleteButton}
+            // REVIEW: This handler does not stop event propagation.
+            // Why it is a bug: when TripCard is wrapped in parent Pressable/Link,
+            // tapping delete can also trigger navigation.
+            // How to fix: use a local handler with GestureResponderEvent and call
+            // `event.stopPropagation()` before `onDelete?.()`.
             onPress={onDelete}
           >
             <Ionicons
