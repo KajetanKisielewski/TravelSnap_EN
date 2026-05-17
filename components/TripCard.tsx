@@ -1,44 +1,65 @@
-import { StyleSheet, Text, View } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import RatingStars from './RatingStars';
 
-export interface TripCardProps {
+interface TripCardProps {
   title: string;
+
   destination: string;
+
   date: string;
+
   rating: number;
 }
 
-export default function TripCard({ title, destination, date, rating }: TripCardProps) {
+export default function TripCard({
+  title,
+  destination,
+  date,
+  rating,
+}: TripCardProps) {
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.meta}>
-        {destination} | {date}
+      <Text style={styles.title}>
+        {title}
       </Text>
-      <RatingStars rating={rating} />
+
+      <Text>
+        {destination}
+      </Text>
+
+      <Text>
+        {date}
+      </Text>
+
+      <RatingStars
+        rating={rating}
+      />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 32,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a2e',
-  },
-  meta: {
-    fontSize: 14,
-    color: '#888',
-  },
-});
+const styles =
+  StyleSheet.create({
+    card: {
+      padding: 16,
+
+      borderWidth: 1,
+
+      borderRadius: 10,
+
+      marginBottom: 16,
+    },
+
+    title: {
+      fontSize: 20,
+
+      fontWeight: 'bold',
+
+      marginBottom: 8,
+    },
+  });

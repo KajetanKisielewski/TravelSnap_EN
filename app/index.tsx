@@ -1,51 +1,53 @@
-import { ScrollView, StyleSheet } from 'react-native';
+import {
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+} from 'react-native';
 
 import TripCard from '@/components/TripCard';
-import type { TripCardProps } from '@/components/TripCard';
-
-const trips: TripCardProps[] = [
-  {
-    title: 'Holiday in Poland',
-    destination: 'Warsaw',
-    date: '2026-03-11',
-    rating: 5,
-  },
-  {
-    title: 'Weekend in Krakow',
-    destination: 'Krakow',
-    date: '2026-04-02',
-    rating: 4,
-  },
-  {
-    title: 'Trip to Bali',
-    destination: 'Ubud',
-    date: '2026-07-20',
-    rating: 3,
-  },
-];
 
 export default function HomeScreen() {
   return (
-    <ScrollView contentContainerStyle={styles.content} style={styles.container}>
-      {trips.map((trip) => (
+    <SafeAreaView
+      style={styles.container}
+    >
+      <ScrollView
+        contentContainerStyle={
+          styles.content
+        }
+      >
         <TripCard
-          key={`${trip.title}-${trip.date}`}
-          title={trip.title}
-          destination={trip.destination}
-          date={trip.date}
-          rating={trip.rating}
+          title="Paris Trip"
+          destination="France"
+          date="2026-03-10"
+          rating={5}
         />
-      ))}
-    </ScrollView>
+
+        <TripCard
+          title="Tokyo Adventure"
+          destination="Japan"
+          date="2026-04-12"
+          rating={4}
+        />
+
+        <TripCard
+          title="Beach Holiday"
+          destination="Spain"
+          date="2026-06-20"
+          rating={3}
+        />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  content: {
-    padding: 16,
-  },
-});
+const styles =
+  StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+
+    content: {
+      padding: 16,
+    },
+  });
