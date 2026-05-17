@@ -1,26 +1,39 @@
 import {
-    Alert,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 
 import {
-    Stack,
-    useLocalSearchParams,
-    useRouter,
+  Stack,
+  router,
+  useLocalSearchParams,
 } from 'expo-router';
 
 import {
-    useEffect,
-    useState,
+  useEffect,
+  useMemo,
 } from 'react';
+
+import {
+  Controller,
+  useForm,
+} from 'react-hook-form';
+
+import { zodResolver } from '@hookform/resolvers/zod';
 
 import { Colors } from '@/constants/Colors';
 
 import { useTrips } from '@/contexts/TripContext';
+
+import {
+  tripSchema,
+  type TripFormData,
+} from '@/types/tripSchema';
 
 export default function EditTripScreen() {
   const { id } =
@@ -28,91 +41,160 @@ export default function EditTripScreen() {
       id: string;
     }>();
 
-  const router =
-    useRouter();
-
   const {
     trips,
     updateTrip,
   } = useTrips();
 
-  const trip = trips.find(
-    (t) => t.id === id
-  );
+  const trip =
+    useMemo(
+      () =>
+        trips.find(
+          (t) =>
+            t.id === id
+        ),
 
-  const [title, setTitle] =
-    useState('');
+      [trips, id]
+    );
 
-  const [
-    destination,
-    setDestination,
-  ] = useState('');
+  const currentTitle =
+    trip?.title
+      .trim()
+      .toLowerCase();
 
-  const [date, setDate] =
-    useState('');
+  const existingTitles =
+    useMemo(
+      () =>
+        trips.map((t) =>
+          t.title
+            .trim()
+            .toLowerCase()
+        ),
 
-  const [rating, setRating] =
-    useState('');
+      [trips]
+    );
+
+  const schema =
+    useMemo(
+      () =>
+        tripSchema.extend({
+          title:
+            tripSchema.shape.title.refine(
+              (value) => {
+                const used =
+                  existingTitles.filter(
+                    (t) =>
+                      t !==
+                      currentTitle
+                  );
+
+                return !used.includes(
+                  value
+                    .trim()
+                    .toLowerCase()
+                );
+              },
+
+              {
+                message:
+                  'This title is already used by another trip',
+              }
+            ),
+        }),
+
+      [
+        existingTitles,
+        currentTitle,
+      ]
+    );
+
+  const {
+    control,
+
+    handleSubmit,
+
+    reset,
+
+    formState: {
+      isSubmitting,
+    },
+  } =
+    useForm<TripFormData>({
+      resolver:
+        zodResolver(
+          schema
+        ),
+
+      mode: 'onBlur',
+    });
 
   useEffect(() => {
     if (!trip) {
       return;
     }
 
-    setTitle(trip.title);
+    reset({
+      title:
+        trip.title,
 
-    setDestination(
-      trip.destination
-    );
+      destination:
+        trip.destination,
 
-    setDate(trip.date);
+      date:
+        trip.date,
 
-    setRating(
-      String(trip.rating)
-    );
-  }, [trip]);
+      rating:
+        trip.rating,
+
+      imageUri:
+        trip.imageUri,
+
+      galleryUris:
+        trip.galleryUris,
+    });
+  }, [trip, reset]);
+
+  const onSubmit =
+    async (
+      data: TripFormData
+    ): Promise<void> => {
+      if (!trip) {
+        return;
+      }
+
+      try {
+        await updateTrip(
+          trip.id,
+          data
+        );
+
+        router.back();
+      } catch (err) {
+        Alert.alert(
+          'Could not update',
+
+          String(err)
+        );
+      }
+    };
 
   if (!trip) {
     return (
-      <View style={styles.screen}>
-        <Text style={styles.errorText}>
+      <View
+        style={
+          styles.centered
+        }
+      >
+        <Text
+          style={
+            styles.notFound
+          }
+        >
           Trip not found
         </Text>
       </View>
     );
   }
-
-  const handleSave =
-    async (): Promise<void> => {
-      if (
-        !title.trim() ||
-        !destination.trim() ||
-        !date.trim() ||
-        !rating.trim()
-      ) {
-        Alert.alert(
-          'Validation',
-          'All fields are required.'
-        );
-
-        return;
-      }
-
-      await updateTrip(id, {
-        title:
-          title.trim(),
-
-        destination:
-          destination.trim(),
-
-        date: date.trim(),
-
-        rating:
-          Number(rating),
-      });
-
-      router.back();
-    };
 
   return (
     <>
@@ -123,73 +205,235 @@ export default function EditTripScreen() {
         }}
       />
 
-      <View style={styles.screen}>
-        <TextInput
-          style={styles.input}
-          placeholder="Title"
-          placeholderTextColor={
-            Colors.textSecondary
-          }
-          value={title}
-          onChangeText={
-            setTitle
-          }
+      <View
+        style={
+          styles.screen
+        }
+      >
+        <Controller
+          control={control}
+          name="title"
+          render={({
+            field,
+            fieldState,
+          }) => (
+            <>
+              <TextInput
+                style={[
+                  styles.input,
+
+                  fieldState.error &&
+                    styles.inputError,
+                ]}
+                placeholder="Title"
+                placeholderTextColor={
+                  Colors.textSecondary
+                }
+                value={
+                  field.value
+                }
+                onChangeText={
+                  field.onChange
+                }
+                onBlur={
+                  field.onBlur
+                }
+              />
+
+              {fieldState.error && (
+                <Text
+                  style={
+                    styles.errorText
+                  }
+                >
+                  {
+                    fieldState
+                      .error
+                      .message
+                  }
+                </Text>
+              )}
+            </>
+          )}
         />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Destination"
-          placeholderTextColor={
-            Colors.textSecondary
-          }
-          value={
-            destination
-          }
-          onChangeText={
-            setDestination
-          }
+        <Controller
+          control={control}
+          name="destination"
+          render={({
+            field,
+            fieldState,
+          }) => (
+            <>
+              <TextInput
+                style={[
+                  styles.input,
+
+                  fieldState.error &&
+                    styles.inputError,
+                ]}
+                placeholder="Destination"
+                placeholderTextColor={
+                  Colors.textSecondary
+                }
+                value={
+                  field.value
+                }
+                onChangeText={
+                  field.onChange
+                }
+                onBlur={
+                  field.onBlur
+                }
+              />
+
+              {fieldState.error && (
+                <Text
+                  style={
+                    styles.errorText
+                  }
+                >
+                  {
+                    fieldState
+                      .error
+                      .message
+                  }
+                </Text>
+              )}
+            </>
+          )}
         />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Date"
-          placeholderTextColor={
-            Colors.textSecondary
-          }
-          value={date}
-          onChangeText={
-            setDate
-          }
+        <Controller
+          control={control}
+          name="date"
+          render={({
+            field,
+            fieldState,
+          }) => (
+            <>
+              <TextInput
+                style={[
+                  styles.input,
+
+                  fieldState.error &&
+                    styles.inputError,
+                ]}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={
+                  Colors.textSecondary
+                }
+                value={
+                  field.value
+                }
+                onChangeText={
+                  field.onChange
+                }
+                onBlur={
+                  field.onBlur
+                }
+              />
+
+              {fieldState.error && (
+                <Text
+                  style={
+                    styles.errorText
+                  }
+                >
+                  {
+                    fieldState
+                      .error
+                      .message
+                  }
+                </Text>
+              )}
+            </>
+          )}
         />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Rating"
-          placeholderTextColor={
-            Colors.textSecondary
-          }
-          value={rating}
-          onChangeText={
-            setRating
-          }
-          keyboardType="numeric"
+        <Controller
+          control={control}
+          name="rating"
+          render={({
+            field,
+            fieldState,
+          }) => (
+            <>
+              <TextInput
+                style={[
+                  styles.input,
+
+                  fieldState.error &&
+                    styles.inputError,
+                ]}
+                placeholder="Rating"
+                placeholderTextColor={
+                  Colors.textSecondary
+                }
+                value={String(
+                  field.value
+                )}
+                onChangeText={(
+                  text
+                ) =>
+                  field.onChange(
+                    Number(
+                      text
+                    )
+                  )
+                }
+                keyboardType="numeric"
+                onBlur={
+                  field.onBlur
+                }
+              />
+
+              {fieldState.error && (
+                <Text
+                  style={
+                    styles.errorText
+                  }
+                >
+                  {
+                    fieldState
+                      .error
+                      .message
+                  }
+                </Text>
+              )}
+            </>
+          )}
         />
 
         <Pressable
-          style={
-            styles.saveButton
+          disabled={
+            isSubmitting
           }
-          onPress={
-            handleSave
-          }
+          onPress={handleSubmit(
+            onSubmit
+          )}
+          style={[
+            styles.saveButton,
+
+            isSubmitting &&
+              styles.saveButtonDisabled,
+          ]}
         >
-          <Text
-            style={
-              styles.saveButtonText
-            }
-          >
-            Save Changes
-          </Text>
+          {isSubmitting ? (
+            <ActivityIndicator
+              color={
+                Colors.background
+              }
+            />
+          ) : (
+            <Text
+              style={
+                styles.saveButtonText
+              }
+            >
+              Save Changes
+            </Text>
+          )}
         </Pressable>
       </View>
     </>
@@ -205,6 +449,26 @@ const styles =
         Colors.background,
 
       padding: 24,
+    },
+
+    centered: {
+      flex: 1,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      backgroundColor:
+        Colors.background,
+    },
+
+    notFound: {
+      color:
+        Colors.textSecondary,
+
+      fontSize: 16,
     },
 
     input: {
@@ -223,9 +487,25 @@ const styles =
       color:
         Colors.textPrimary,
 
-      marginBottom: 16,
+      marginBottom: 8,
 
       fontSize: 16,
+    },
+
+    inputError: {
+      borderColor:
+        Colors.accent,
+
+      borderWidth: 1.5,
+    },
+
+    errorText: {
+      color:
+        Colors.accent,
+
+      fontSize: 12,
+
+      marginBottom: 8,
     },
 
     saveButton: {
@@ -242,18 +522,16 @@ const styles =
       marginTop: 8,
     },
 
+    saveButtonDisabled:
+      {
+        opacity: 0.5,
+      },
+
     saveButtonText: {
       color:
         Colors.background,
 
       fontWeight: 'bold',
-
-      fontSize: 16,
-    },
-
-    errorText: {
-      color:
-        Colors.textSecondary,
 
       fontSize: 16,
     },
