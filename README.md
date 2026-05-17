@@ -1,305 +1,682 @@
-# Task 8 - Networking & REST API
+# Task 9 - Forms & Validation
+
+> **Goal:** replace the raw `useState` in `AddTripForm` with `react-hook-form` + `Zod`, add field-level errors, loading state on submit, and a new trip-edit screen. By the end of CORE, your form has professional validation and scales painlessly.
 
 ---
 
-## What you're building
+## What you start with
 
-After CORE your app:
+After Lecture 8 you have:
 
-- has a custom `useFetch<T>(url)` hook in `hooks/useFetch.ts` that owns the three networked-screen states (`data`, `loading`, `error`) with automatic cancellation on unmount;
-- shows a hero photo on the trip detail screen (`app/trip/[id].tsx`) fetched live from Unsplash, falling back to the local `imageUri`;
-- shows a `<CountryCard />` below the hero with the country's flag, capital, and currency - data from RestCountries;
-- has a fully working Explore tab (`app/(tabs)/explore.tsx`) - a vertical list of popular cities, each card loading its own photo independently;
-- handles `loading` (spinner) and `error` (message) states on every networked surface - no blank screens, no crashes.
+- `AddTripForm.tsx` on four `useState` calls (title, destination, date, rating) - submit without validation.
+- `TripContext` with `addTrip`, `deleteTrip`, `updateTrip` (signature `(id, partial) => Promise<void>`) and hydration from `AsyncStorage`.
+- `types/trip.ts` with `TripData` and `Trip extends TripData { id }`.
+- Screens: `(tabs)/index.tsx` (list), `(tabs)/explore.tsx`, `trip/[id].tsx` (details), `trip/gallery/[id].tsx`.
 
-After STRETCH you additionally have a `refetch()` exposed by the hook, an AsyncStorage cache (stale-while-revalidate), pull-to-refresh on Explore, retry buttons in error states, and one component rewritten from `fetch` to `axios` for comparison.
+Starting state for this task: in `AddTripForm.tsx`, you can press "Add" with an empty title and the `date` field in any format. We're fixing that.
 
 ---
 
-## Design spec
+## Design Spec - new files
 
-### New files
-
-| File | What lives there |
+| File | Purpose |
 |---|---|
-| `hooks/useFetch.ts` | the generic `useFetch<T>(url): { data, loading, error }` hook |
-| `types/unsplash.ts` | `UnsplashResponse` interface describing the search/photos endpoint |
-| `types/country.ts` | `Country` interface describing the RestCountries response |
-| `components/CountryCard.tsx` | flag + name + capital + currency tile |
-| `components/DestinationCard.tsx` | photo + city name overlay tile, used in Explore |
-| `components/ErrorView.tsx` | reusable error view - message + "Try again" button |
-| `constants/api.ts` | Unsplash key + base URLs for both APIs |
+| `types/tripSchema.ts` | `tripSchema` (z.object), type `TripFormData = z.infer<typeof tripSchema>` |
+| `app/trip/edit/[id].tsx` | Trip edit screen — the same form with `defaultValues` from an existing trip |
+| `components/TripFormFields.tsx` *(optional)* | Extracted JSX of the form fields, reused between AddTripForm and the edit screen |
 
-### Modified files
+## Design Spec - modified files
 
 | File | What changes |
 |---|---|
-| `app/trip/[id].tsx` | add `useFetch` for the hero photo + drop in `<CountryCard />` |
-| `app/(tabs)/explore.tsx` | replace the placeholder with a `FlatList` of `DestinationCard` |
+| `components/AddTripForm.tsx` | Refactor from `useState` to `useForm` + `Controller`, add field-level errors and loading state |
+| `app/trip/[id].tsx` | Add an "Edit" button next to "Delete", routing to `/trip/edit/[id]` |
+| `package.json` | New deps: `react-hook-form`, `@hookform/resolvers`, `zod` |
 
-### Visual style
+## Style conventions (keep consistent with L1-L8)
 
-Keep the existing dark theme from `constants/Colors.ts`. Hero photo: full width, ~250pt tall, `resizeMode: "cover"`, slight bottom corner radius. CountryCard: tile with flag on the left (60×40pt), text on the right, padding 16, border-radius 12, background `Colors.cardBg`. DestinationCard in Explore: 16:9 photo, city name in white bold 20pt over a dark gradient overlay at the bottom, margin 16, border-radius 12.
-
-### API endpoints
-
-```
-Unsplash:      https://api.unsplash.com/search/photos?query=<city>&per_page=1
-               header: Authorization: Client-ID <KEY>
-RestCountries: https://restcountries.com/v3.1/name/<countryName>
-               no auth required
-```
+- Colors from `constants/Colors.ts` - `accent` (`#E94560`) for errors, `reactBlue` for CTA, `gray500` for placeholder.
+- Input `borderColor` in error state: `Colors.accent`; normal state: `Colors.gray300`.
+- `errorText`: `fontSize: 12`, `color: Colors.accent`, `marginTop: 4`.
+- Submit button: background `Colors.reactBlue`, text `Colors.darkBg`; disabled: `opacity: 0.5`.
 
 ---
 
-## Step 0 - setup
+## Step 0 - Dependency setup
 
-**0.1.** Sign up for a free account at <https://unsplash.com/developers>, create a new application (type: "Demo"), and copy the **Access Key**.
+**Goal:** install `react-hook-form`, `@hookform/resolvers` (for zodResolver) and `zod`.
 
-**0.2.** Create `constants/api.ts`:
+1. In your project directory run:
 
-```typescript
-export const UNSPLASH_ACCESS_KEY = "paste-your-key-here";
-export const UNSPLASH_BASE_URL = "https://api.unsplash.com";
-export const RESTCOUNTRIES_BASE_URL = "https://restcountries.com/v3.1";
-```
-
-> **Heads up:** in a real project the key would live in `app.config.js` via `expo-constants`, or in a `.env` file with `react-native-dotenv`. We'll cover that properly in a later lecture. For this task a plain constant is fine - **but add `constants/api.ts` to `.gitignore` before you commit anything**, otherwise scrapers will harvest your key within hours.
-
-**0.3.** Verify a `hooks/` folder exists at the project root next to `components/`, `utils/`, `context/`. If it doesn't, create it.
-
----
-
-## Step 1 - `hooks/useFetch.ts`
-
-**Goal:** one generic hook that replaces the entire `useState × 3 + useEffect` boilerplate on every networked screen.
-
-**Signature:**
-
-```typescript
-interface FetchState<T> {
-  data:    T | null;
-  loading: boolean;
-  error:   string | null;
-}
-
-export function useFetch<T>(url: string): FetchState<T>;
-```
-
-**Requirements:**
-
-1. Three `useState` slots: `data` (starts `null`), `loading` (starts `true` - the moment the component mounts, we're already fetching), `error` (starts `null`).
-2. A `useEffect` that depends on `url` - when the URL changes, kick off a new fetch.
-3. A local `cancelled` flag inside the effect - when the component unmounts or the URL changes before the response arrives, ignore the result. Without this, React warns about state updates on an unmounted component.
-4. Check `response.ok` - if `false`, treat it as an HTTP error (e.g. `throw new Error('HTTP ${status}')`).
-5. A single `try/catch` (or promise chain with `.catch`) that catches both network errors (thrown by `fetch` itself) and HTTP errors.
-6. Coerce `error` to a `string`, not the raw object - `String(err)` at the boundary. Components find it easier to render strings.
-7. Return a cleanup function from the effect that sets `cancelled = true`.
-
-**Tip:** if you go with `.then`/`.catch`/`.finally`, every callback must start with `if (cancelled) return;` or be wrapped in `!cancelled && ...`.
-
----
-
-## Step 2 - Hero photo in TripDetail
-
-**Goal:** in `app/trip/[id].tsx`, at the top (above the existing content), show a destination photo from Unsplash. If the API hasn't responded yet or it errored, show the local `trip.imageUri`. If neither exists, render a placeholder (e.g. a `<View>` with `Colors.cardBg`).
-
-**Requirements:**
-
-1. Define `UnsplashResponse` in `types/unsplash.ts`. Minimal shape:
-   ```typescript
-   export interface UnsplashPhoto {
-     id: string;
-     urls: { regular: string; small: string };
-     user: { name: string };
-   }
-   export interface UnsplashResponse {
-     total: number;
-     results: UnsplashPhoto[];
-   }
+   ```bash
+   npx expo install react-hook-form @hookform/resolvers zod
    ```
-2. Build the URL from `trip.destination` using `encodeURIComponent` - destinations like "Sao Paulo, Brazil" need to be properly encoded.
-3. Call `useFetch<UnsplashResponse>(url)` near the top of the component, **with renamed destructuring** (`data: photoData`, `loading: photoLoading`) — you'll have a second `useFetch` call in Step 4.
-4. Pick the hero URL with a fallback chain:
-   ```typescript
-   const heroUri =
-     photoData?.results?.[0]?.urls?.regular ?? trip.imageUri;
-   ```
-5. **Auth:** the fetch has to send `Authorization: Client-ID <KEY>` as a header. Here's the catch - our `useFetch` only takes a URL. **Solution:** extend the `useFetch` signature with an optional second argument `init?: RequestInit` (default `undefined`) and pass it to `fetch(url, init)`. Mind the dependency array of the `useEffect` (object literals create new references on every render, so either memoize `init` with `useMemo`, or serialize the relevant header keys into a string for the deps).
-6. Render — `<Image source={{ uri: heroUri }} />` whenever `heroUri` exists. Show an `<ActivityIndicator />` overlay only when `photoLoading === true`.
-7. Attribution: small caption below the photo, "Photo by {photoData?.results?.[0]?.user?.name} on Unsplash" - Unsplash's API terms require attribution.
 
-**Pitfall:** `useFetch` will surface a 401 if your Unsplash key is wrong. Inspect the request headers with `console.log` before debugging your component logic.
+   `expo install` picks versions compatible with your SDK. If for some reason it fails, `npm install react-hook-form @hookform/resolvers zod` works too - but `expo install` is safer.
+
+2. Verify in `package.json` that they appear under `dependencies`:
+
+   ```json
+   "react-hook-form": "^7.x.x",
+   "@hookform/resolvers": "^3.x.x",
+   "zod": "^3.x.x"
+   ```
+
+3. Restart Metro (`Ctrl+C` and `npx expo start` again).
+
+**Pitfall:** if you see `Cannot find module '@hookform/resolvers/zod'`, make sure you import from `@hookform/resolvers/zod` (the subpath), not from `@hookform/resolvers`.
 
 ---
 
-## Step 3 - `components/CountryCard.tsx`
+## Step 1 - Zod schema for TripData
 
-**Goal:** a component that takes a country name as a prop and renders a tile with the flag, capital, and currency. RestCountries, no auth.
+**Goal:** create `types/tripSchema.ts` declaring the validation schema and the form-data type derived from it.
 
-**Signature:**
+### Signature
 
-```typescript
-interface CountryCardProps {
-  countryName: string;  // e.g. "Japan"
-}
-export function CountryCard({ countryName }: CountryCardProps): JSX.Element | null;
+```ts
+// types/tripSchema.ts
+import { z } from 'zod';
+
+export const tripSchema = z.object({ /* ... */ });
+
+export type TripFormData = z.infer<typeof tripSchema>;
 ```
 
-**Requirements:**
+### Requirements
 
-1. Define `Country` in `types/country.ts`:
-   ```typescript
-   export interface Country {
-     name:        { common: string; official: string };
-     flags:       { png: string; svg: string };
-     capital?:    string[];
-     currencies?: Record<string, { name: string; symbol: string }>;
-     region?:     string;
-   }
-   ```
-2. URL: `${RESTCOUNTRIES_BASE_URL}/name/${encodeURIComponent(countryName)}`. RestCountries always returns an **array**, even for an exact name search - so the type is `Country[]`.
-3. Call `useFetch<Country[]>(url)`.
-4. **Silent-fail philosophy:** when `loading === true` return a skeleton (a plain `<View>` sized to the final layout with `Colors.skeleton` background); when `error` or `!data?.[0]`, return `null` - don't show an error message. The country card is decoration, not essence. The detail screen should remain useful even when RestCountries is down.
-5. The full render: destructure `data[0]` into `country`, pull the currency via `Object.values(country.currencies ?? {})[0]`. Show:
-   - flag (`country.flags.png`) as a 60×40pt `<Image>` on the left,
-   - country name (`country.name.common`) as 16pt bold `<Text>`,
-   - "Capital: {country.capital?.[0] ?? '-'}",
-   - "Currency: {currency?.name} ({currency?.symbol})".
+1. **`title`** — string, after `.trim()`:
+   - min 3 characters → message `'Title must be at least 3 characters'`
+   - max 60 characters → message `'Title must be at most 60 characters'`
 
-**Tip:** `country.currencies` is keyed by currency code (e.g. `{ JPY: { name: "Japanese yen", symbol: "¥" } }`), which is why we use `Object.values(...)[0]` - take the first currency, ignore the key.
+2. **`destination`** — string:
+   - min 1 character → message `'Destination is required'`
+   - max 80 characters (no custom message needed)
 
----
+3. **`date`** — string:
+   - regex `/^\d{4}-\d{2}-\d{2}$/` → message `'Use YYYY-MM-DD format'`
 
-## Step 4 - Plug CountryCard into TripDetail
+4. **`rating`** — number:
+   - `.int()` — must be integer
+   - min 1 → message `'Rate at least 1 star'`
+   - max 5
 
-**Goal:** below the hero photo (Step 2), drop in `<CountryCard countryName={...} />`.
+5. **`imageUri`** — `z.string().optional()` (NO `.url()` — see pitfall below)
 
-**Requirements:**
+6. **`galleryUris`** — `z.array(z.string()).optional()`
 
-1. `trip.destination` is a string like `"Tokyo, Japan"` or `"Lisbon, Portugal"`. CountryCard wants just the country. Write a helper `extractCountry(destination: string): string`:
-   ```typescript
-   export function extractCountry(destination: string): string {
-     const parts = destination.split(",").map(s => s.trim());
-     return parts[parts.length - 1] || destination;
-   }
-   ```
-   (When the destination has no comma, treat the whole string as a country name.)
-2. Put the helper in `utils/destination.ts` or inline it in `app/trip/[id].tsx` - your call.
-3. In TripDetail: `<CountryCard countryName={extractCountry(trip.destination)} />`.
+7. At the bottom of the file: `export type TripFormData = z.infer<typeof tripSchema>;`
 
-**Acceptance:** open any trip. A country card should appear below the hero. If the destination is "Tatry, Poland", the card shows the Polish flag. If the destination is "Mars Base 1", the card shows a loading skeleton briefly, then disappears (silent fail).
+### Pitfall
+
+- **Don't use `.url()` on `imageUri`.** On a phone, image URIs look like `file:///var/mobile/Containers/Data/.../image.jpg`. They're URIs (file://), not URLs (http://). `.url()` will reject them.
+- **`.trim()` comes BEFORE `.min()`.** Otherwise three spaces count toward the minimum length.
 
 ---
 
-## Step 5 - Explore tab with real data
+## Step 2 - Refactor AddTripForm to react-hook-form
 
-**Goal:** replace the placeholder in `app/(tabs)/explore.tsx` with a vertical list of popular destinations. Each card loads its own photo.
+**Goal:** swap the four `useState` calls for one `useForm`, wrap every input in `<Controller>`.
 
-**Requirements:**
+### Requirements
 
-1. Hard-code the destination list as a top-level constant:
-   ```typescript
-   const POPULAR = [
-     "Tokyo", "Lisbon", "Reykjavik", "Bali",
-     "Cape Town", "Kyoto", "Marrakech", "Patagonia"
-   ];
+1. **Imports at the top of `AddTripForm.tsx`:**
+
+   ```tsx
+   import { useForm, Controller } from 'react-hook-form';
+   import { zodResolver } from '@hookform/resolvers/zod';
+   import { tripSchema, TripFormData } from '@/types/tripSchema';
    ```
-2. A `<DestinationCard city={city} />` component in `components/DestinationCard.tsx` - internally calls `useFetch<UnsplashResponse>` with a URL built from `city`. Renders:
-   - 16:9 photo (`<Image>` from `urls.regular`),
-   - a gradient overlay at the bottom of the photo (use `expo-linear-gradient` if it's already in your deps, or a plain `<View>` with `backgroundColor: 'rgba(0,0,0,0.5)'`),
-   - "Tokyo" in white bold 20pt over the overlay.
-3. The `<FlatList>` in Explore:
-   ```typescript
-   <FlatList
-     data={POPULAR}
-     keyExtractor={city => city}
-     renderItem={({ item }) => <DestinationCard city={item} />}
-     contentContainerStyle={{ padding: 16, gap: 16 }}
+
+2. **Replace the four `useState` calls with one `useForm`:**
+
+   ```tsx
+   const {
+     control,
+     handleSubmit,
+     formState: { errors, isSubmitting },
+   } = useForm<TripFormData>({
+     resolver: zodResolver(tripSchema),
+     mode: 'onBlur',
+     defaultValues: {
+       title: '',
+       destination: '',
+       date: '',
+       rating: 3,
+       galleryUris: [],
+     },
+   });
+   ```
+
+   **Important:** `rating: 3` is a **number**, not the string `'3'`. The schema expects a number; a string default will fail the very first parse.
+
+3. **Wrap every `TextInput` in `<Controller>`:**
+
+   ```tsx
+   <Controller
+     control={control}
+     name="title"
+     render={({ field, fieldState }) => (
+       <>
+         <TextInput
+           style={[styles.input, fieldState.error && styles.inputError]}
+           value={field.value}
+           onChangeText={field.onChange}   // NOT onChange
+           onBlur={field.onBlur}
+           placeholder="Trip title"
+           placeholderTextColor={Colors.gray500}
+         />
+         {fieldState.error && (
+           <Text style={styles.errorText}>{fieldState.error.message}</Text>
+         )}
+       </>
+     )}
    />
    ```
-4. Each card has its own `loading` (skeleton while fetching) and `error` (silently render nothing).
-5. **Concurrent by design:** opening Explore fires 8 fetches in parallel, each independent. Cards will appear unevenly as responses arrive. That's fine — that's how real apps look.
+
+   Repeat for `destination`, `date`.
+
+4. **`rating` also goes through `Controller`** - but instead of `TextInput`, render your existing `RatingStars`:
+
+   ```tsx
+   <Controller
+     control={control}
+     name="rating"
+     render={({ field, fieldState }) => (
+       <>
+         <RatingStars value={field.value} onChange={field.onChange} />
+         {fieldState.error && (
+           <Text style={styles.errorText}>{fieldState.error.message}</Text>
+         )}
+       </>
+     )}
+   />
+   ```
+
+5. **Submit handler:**
+
+   ```tsx
+   const onSubmit = async (data: TripFormData) => {
+     try {
+       await addTrip(data);   // from useTrips()
+       router.back();
+     } catch (err) {
+       Alert.alert('Could not save', String(err));
+     }
+   };
+   ```
+
+6. **Submit button:** wire `onPress={handleSubmit(onSubmit)}` - **always with `handleSubmit`**, never call `onSubmit` directly.
+
+### Pitfall
+
+- **`onChangeText={field.onChange}`, NOT `onChange={field.onChange}`.** RN's `onChangeText` callback gets a string. RN's `onChange` callback gets an event. If you wire `onChange`, the form value will be the event object and nothing will validate.
+- `Controller` does not forward `ref` to the inner input. If you need refs (for autofocus chaining in stretch), manage them outside.
 
 ---
 
-## Step 6 - Loading and error states everywhere
+## Step 3 - Field-level errors in UI
 
-**Goal:** no networked screen leaves the user with a blank screen or a crash.
+**Goal:** make each field's error visible - color the border, show the message under the input.
 
-**Requirements:**
+### Requirements
 
-1. **TripDetail hero:** `photoLoading === true` → `<ActivityIndicator>` centered in the hero area. `photoError` → ignore (we already fall back to `trip.imageUri`).
-2. **CountryCard:** loading → skeleton; error / no data → `null` (silent fail, see Step 3).
-3. **DestinationCard:** loading → grey placeholder sized to the final card; error → hide the card (`null`).
-4. **TripDetail as a whole** (when the trip doesn't exist in the context): show `<ErrorView message="Trip not found" />` - with a "Go back" button instead of "Try again".
-5. Build an `ErrorView` in `components/ErrorView.tsx`:
-   ```typescript
-   interface ErrorViewProps {
-     message: string;
-     onRetry?: () => void;
-     retryLabel?: string;  // default "Try again"
+1. **Add styles to `AddTripForm.tsx`** (or a separate styles file):
+
+   ```ts
+   const styles = StyleSheet.create({
+     input: {
+       borderWidth: 1,
+       borderColor: Colors.gray300,
+       borderRadius: 8,
+       padding: 12,
+       fontSize: 16,
+       color: Colors.gray900,
+       backgroundColor: Colors.white,
+     },
+     inputError: {
+       borderColor: Colors.accent,
+       borderWidth: 1.5,
+     },
+     errorText: {
+       color: Colors.accent,
+       fontSize: 12,
+       marginTop: 4,
+       marginBottom: 8,
+     },
+   });
+   ```
+
+2. **Apply conditional style on each `TextInput`:**
+
+   ```tsx
+   style={[styles.input, fieldState.error && styles.inputError]}
+   ```
+
+   React Native's style array accepts `false` entries (they're ignored). When `fieldState.error` is undefined, the second element is `false`. When it exists, `inputError` overrides borderColor.
+
+3. **Render the message below the field** - already in the `Controller` `render` from step 2.
+
+4. **Verify on the simulator:**
+   - Tap into the title field, type `Pa`, tap into destination → red border + message under title.
+   - Clear the title, type `Paris` → border returns to gray, message disappears.
+
+### Pitfall
+
+- If you put `inputError` AFTER `input` in the array (`[styles.inputError, styles.input]`), `input.borderColor` overrides the error color. Order matters in style arrays — later wins.
+
+---
+
+## Step 4 - Submit with loading state
+
+**Goal:** while submit runs, disable the button and show an `ActivityIndicator`. The user must know something's happening.
+
+### Requirements
+
+1. **Use `isSubmitting` from formState** (already destructured in step 2).
+
+2. **Submit button - instead of plain `Button`, build a `Pressable`** so you can swap the label:
+
+   ```tsx
+   <Pressable
+     onPress={handleSubmit(onSubmit)}
+     disabled={isSubmitting}
+     style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
+   >
+     {isSubmitting
+       ? <ActivityIndicator color={Colors.darkBg} />
+       : <Text style={styles.submitBtnText}>Save</Text>}
+   </Pressable>
+   ```
+
+3. **Add the styles:**
+
+   ```ts
+   submitBtn: {
+     backgroundColor: Colors.reactBlue,
+     paddingVertical: 14,
+     borderRadius: 8,
+     alignItems: 'center',
+     marginTop: 12,
+   },
+   submitBtnDisabled: {
+     opacity: 0.5,
+   },
+   submitBtnText: {
+     color: Colors.darkBg,
+     fontWeight: '600',
+     fontSize: 16,
+   },
+   ```
+
+4. **`ActivityIndicator` color = `Colors.darkBg`** - the button background is the bright `reactBlue`. A white spinner would be invisible.
+
+5. **Test:** in the submit handler add `await new Promise(r => setTimeout(r, 1500))` temporarily, press Save → spinner shows for 1.5s. Remove the artificial delay before submitting the PR.
+
+### Pitfall
+
+- **Don't read `formState.isSubmitting` directly outside the form scope.** It's reactive only within components subscribed to formState. Destructure it where you use it.
+- A native `<Button>` doesn't allow custom children. Use `<Pressable>` (or `<TouchableOpacity>`) to swap label for the spinner.
+
+---
+
+## Step 5 - Edit screen `app/trip/edit/[id].tsx`
+
+**Goal:** new screen that lets the user edit an existing trip with the same form, populated via `reset()`.
+
+### Requirements
+
+1. **Create file:** `app/trip/edit/[id].tsx`. Expo Router will pick it up as a dynamic route.
+
+2. **Full skeleton of the screen:**
+
+   ```tsx
+   import { useLocalSearchParams, router } from 'expo-router';
+   import { useEffect, useMemo } from 'react';
+   import { useForm, Controller } from 'react-hook-form';
+   import { zodResolver } from '@hookform/resolvers/zod';
+   import { View, Text, TextInput, Pressable, ActivityIndicator, Alert, StyleSheet } from 'react-native';
+   import { useTrips } from '@/context/TripContext';
+   import { tripSchema, TripFormData } from '@/types/tripSchema';
+   import { RatingStars } from '@/components/RatingStars';
+   import { EmptyState } from '@/components/EmptyState';
+   import { ScreenHeader } from '@/components/ScreenHeader';
+   import { Colors } from '@/constants/Colors';
+
+   export default function EditTripScreen() {
+     const { id } = useLocalSearchParams<{ id: string }>();
+     const { trips, updateTrip } = useTrips();
+     const trip = useMemo(
+       () => trips.find(t => t.id === id),
+       [trips, id]
+     );
+
+     const {
+       control,
+       handleSubmit,
+       reset,
+       formState: { errors, isSubmitting },
+     } = useForm<TripFormData>({
+       resolver: zodResolver(tripSchema),
+       mode: 'onBlur',
+     });
+
+     useEffect(() => {
+       if (!trip) return;
+       reset({
+         title: trip.title,
+         destination: trip.destination,
+         date: trip.date,
+         rating: trip.rating,
+         imageUri: trip.imageUri,
+         galleryUris: trip.galleryUris,
+       });
+     }, [trip, reset]);
+
+     const onSubmit = async (data: TripFormData) => {
+       if (!trip) return;
+       try {
+         await updateTrip(trip.id, data);
+         router.back();
+       } catch (err) {
+         Alert.alert('Could not update', String(err));
+       }
+     };
+
+     if (!trip) {
+       return <EmptyState message="Trip not found" />;
+     }
+
+     return (
+       <View style={styles.container}>
+         <ScreenHeader title="Edit trip" />
+         <View style={styles.form}>
+           {/* Controllers: title, destination, date, rating — same as AddTripForm */}
+
+           <Pressable
+             onPress={handleSubmit(onSubmit)}
+             disabled={isSubmitting}
+             style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
+           >
+             {isSubmitting
+               ? <ActivityIndicator color={Colors.darkBg} />
+               : <Text style={styles.submitBtnText}>Update</Text>}
+           </Pressable>
+         </View>
+       </View>
+     );
    }
    ```
-   Render: a warning icon (e.g. `Ionicons name="alert-circle"`), the message, and the button (only when `onRetry` is provided).
 
-**Acceptance:** turn off wifi in the simulator, open the app, open Explore. You should see grey placeholders instead of a blank screen. Turn wifi back on - cards should load on the next time you open Explore. (The retry button comes in STRETCH.)
+3. **The `Controller` JSX for each field is identical to AddTripForm.** This is a great candidate to extract into `components/TripFormFields.tsx` taking `control` as a prop, used by both add and edit screens. Optional but strongly recommended for the stretch.
 
----
+4. **Test:**
+   - From the trip details screen (`trip/[id].tsx`) navigate to `/trip/edit/[id]`.
+   - Fields are pre-populated with current trip data.
+   - Change the title to something invalid (e.g., 2 chars) → see the error.
+   - Fix it, press Update → trip updates in the list, screen pops.
 
-## Step 7 - `refetch` in `useFetch`
+### Pitfall
 
-Add a fourth field to `useFetch`'s return: `refetch: () => void`.
-
-1. Extract the body of `useEffect` into a named function `fetchData` wrapped in `useCallback` with `[url, init]` as deps.
-2. The `useEffect` calls `fetchData()` and returns the cleanup with the `cancelled` flag.
-3. Expose `refetch: fetchData` in the hook's return object.
-4. Update every consumer to destructure `refetch` even if they don't use it yet (TS won't complain, and you'll be consistent for the future).
-
-**Pitfall:** `useCallback` with `init` in its deps will trip over fresh objects on every render. Either require the consumer to memoize `init` with `useMemo`, or serialize the relevant header keys into a string for the deps array.
+- **Don't spread the whole `trip` into `reset`.** `reset({ ...trip })` leaks `id` into form state. `TripFormData` has no `id` - pick fields explicitly.
+- **Don't put `trip` in `defaultValues`.** `defaultValues` is read once at mount; at that point `trip` may still be undefined (the context is hydrating). Always use `reset()` in a `useEffect` that depends on `trip`.
+- `useMemo` for `trip` — important if `trips` array is rebuilt frequently. Otherwise `useEffect` runs on every render.
 
 ---
 
-## Step 8 - AsyncStorage cache (stale-while-revalidate)
+## Step 6 - "Edit" button in `trip/[id].tsx`
 
-Add a cache layer to `useFetch`:
+**Goal:** add the "Edit" button on the trip details screen that pushes the edit route.
 
-1. Cache key: `cache:v1:${url}` (versioned prefix - when you change the schema, bump `v1` to `v2` and old keys are ignored).
-2. **Cache value:** an object `{ ts: number, data: T }` JSON-serialized. `ts` is `Date.now()`.
-3. **Flow:**
-   - on effect start: `getItem` → if it exists and `ts` is younger than 24h, immediately call `setData(parsed.data)` and `setLoading(false)`;
-   - **regardless of cache** kick off the fetch in the background; on success replace the state and `setItem` with a new timestamp.
-4. **Edge case:** when the fetch fails but cache is fresh — don't surface an error. The user has a working view.
+### Requirements
+
+1. **Open `app/trip/[id].tsx`.** Find the existing "Delete" button section.
+
+2. **Add an "Edit" button:**
+
+   ```tsx
+   <Pressable
+     onPress={() => router.push(`/trip/edit/${trip.id}`)}
+     style={styles.editBtn}
+   >
+     <Text style={styles.editBtnText}>Edit</Text>
+   </Pressable>
+   ```
+
+3. **Styles (matching the design of the rest of the app):**
+
+   ```ts
+   editBtn: {
+     backgroundColor: Colors.reactBlue,
+     paddingVertical: 12,
+     paddingHorizontal: 24,
+     borderRadius: 8,
+     alignItems: 'center',
+     marginTop: 12,
+     marginHorizontal: 16,
+   },
+   editBtnText: {
+     color: Colors.darkBg,
+     fontWeight: '600',
+     fontSize: 15,
+   },
+   ```
+
+4. **Test:**
+   - Tap "Edit" on a trip details screen → navigates to the edit screen.
+   - Make a change, save → back to details, data updated.
+   - The trip list reflects the new data immediately (TripContext re-renders).
+
+### Pitfall
+
+- Path template literal needs backticks: `` `/trip/edit/${trip.id}` ``. If you use double quotes, you'll get a literal `/trip/edit/${trip.id}` string.
 
 ---
 
-##  Step 9 - Pull-to-refresh on Explore
 
-```typescript
-const refetchAll = () => { /* force re-fetch on every card */ };
-<FlatList
-  refreshing={isRefreshing}
-  onRefresh={refetchAll}
-  ...
-/>
-```
+###  Step 7 - Async unique-title validation
 
-**Pitfall:** `FlatList` has one `refreshing` for the whole list, but every card owns its own `useFetch`. You need to either:
-- (easier) keep a `key` prop on the FlatList and bump it on refresh, which forces every card to remount;
-- (better) hand each `DestinationCard` a `refetch` ref, aggregate them in the parent.
+**Goal:** block creating two trips with the same title.
 
-Start with the first option.
+1. **Build the title list memo:**
+
+   ```tsx
+   const { trips } = useTrips();
+   const existingTitles = useMemo(
+     () => trips.map(t => t.title.trim().toLowerCase()),
+     [trips]
+   );
+   // On the edit screen — exclude current trip's title:
+   const currentTitle = trip?.title.trim().toLowerCase();
+   ```
+
+2. **Extend the schema with async refine:**
+
+   ```tsx
+   const schema = useMemo(
+     () => tripSchema.extend({
+       title: z.string().trim()
+         .min(3, 'Title must be at least 3 characters')
+         .max(60)
+         .refine(
+           async (val) => {
+             const used = existingTitles.filter(t => t !== currentTitle);
+             return !used.includes(val.trim().toLowerCase());
+           },
+           { message: 'This title is already used by another trip' }
+         ),
+     }),
+     [existingTitles, currentTitle]
+   );
+   ```
+
+3. **Pass `schema` (not `tripSchema`) to zodResolver:** `resolver: zodResolver(schema)`.
+
+4. **Test:** create a trip "Paris". Try to create another "Paris" → red error. On the edit screen of the existing Paris, re-saving the same title is allowed.
+
+### Step 8 - `isDirty` + "Discard changes?" alert
+
+**Goal:** if the user tries to leave a half-edited form, ask before losing data.
+
+1. **Read `isDirty` from formState:** `formState: { isDirty }`.
+
+2. **Use React Navigation's beforeRemove listener** (the edit screen has access to `navigation` via `useNavigation` from `@react-navigation/native`, or pass through Expo Router's events):
+
+   ```tsx
+   useEffect(() => {
+     const unsub = navigation.addListener('beforeRemove', (e) => {
+       if (!isDirty) return;
+       e.preventDefault();
+       Alert.alert(
+         'Discard changes?',
+         'You have unsaved changes. Are you sure you want to leave?',
+         [
+           { text: 'Stay', style: 'cancel' },
+           { text: 'Discard', style: 'destructive',
+             onPress: () => navigation.dispatch(e.data.action) },
+         ]
+       );
+     });
+     return unsub;
+   }, [navigation, isDirty]);
+   ```
+
+3. **Test:** start editing a trip, change the title, hit back → alert appears. "Stay" keeps you on the screen, "Discard" actually navigates away.
+
+### Step 9 - Multi-step wizard
+
+**Goal:** split AddTripForm into three steps with a progress indicator.
+
+1. **Step config:** step 1 = title + destination, step 2 = date + rating, step 3 = imageUri + gallery.
+
+2. **One `useForm` instance** for all steps (don't split state).
+
+3. **Per-step validation with `trigger`:**
+
+   ```tsx
+   const stepFields: Record<number, (keyof TripFormData)[]> = {
+     0: ['title', 'destination'],
+     1: ['date', 'rating'],
+     2: ['imageUri'],
+   };
+
+   const next = async () => {
+     const ok = await trigger(stepFields[step]);
+     if (ok) setStep(s => s + 1);
+   };
+   ```
+
+4. **Conditionally render fields** by step.
+
+5. **Submit button only on the last step.** On earlier steps, "Next" calls `next()`.
+
+6. **Progress dots / pills** showing current step out of three.
+
+### Step 10 - Photo upload as part of the form
+
+**Goal:** allow picking an image from the gallery and storing its URI in `imageUri`.
+
+1. **Install expo-image-picker:**
+
+   ```bash
+   npx expo install expo-image-picker
+   ```
+
+2. **Permission request before picking:**
+
+   ```tsx
+   const askPermission = async () => {
+     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+     if (status !== 'granted') {
+       Alert.alert('Permission needed', 'Allow gallery access to add a photo.');
+       return false;
+     }
+     return true;
+   };
+   ```
+
+3. **Pick image - store URI via field.onChange:**
+
+   ```tsx
+   <Controller
+     control={control}
+     name="imageUri"
+     render={({ field }) => (
+       <View>
+         {field.value && (
+           <Image source={{ uri: field.value }} style={styles.preview} />
+         )}
+         <Pressable onPress={async () => {
+           const ok = await askPermission();
+           if (!ok) return;
+           const result = await ImagePicker.launchImageLibraryAsync({
+             mediaTypes: ImagePicker.MediaTypeOptions.Images,
+             quality: 0.8,
+           });
+           if (!result.canceled) {
+             field.onChange(result.assets[0].uri);
+           }
+         }}>
+           <Text>{field.value ? 'Change photo' : 'Add photo'}</Text>
+         </Pressable>
+       </View>
+     )}
+   />
+   ```
+
+4. **Verify `imageUri` survives validation** - schema has it as optional, so empty is fine.
+
+### Step 11 - UX polish: autoFocus, returnKeyType, KeyboardAvoidingView
+
+**Goal:** make the form feel native and snappy.
+
+1. **autoFocus the first field:**
+
+   ```tsx
+   <TextInput autoFocus={true} ... />
+   ```
+
+   Only on the first input (title). The keyboard opens on mount.
+
+2. **returnKeyType + chaining via refs:**
+
+   ```tsx
+   const destinationRef = useRef<TextInput>(null);
+   const dateRef = useRef<TextInput>(null);
+
+   <TextInput
+     returnKeyType="next"
+     onSubmitEditing={() => destinationRef.current?.focus()}
+     ...
+   />
+   <TextInput
+     ref={destinationRef}
+     returnKeyType="next"
+     onSubmitEditing={() => dateRef.current?.focus()}
+     ...
+   />
+   <TextInput
+     ref={dateRef}
+     returnKeyType="done"
+     onSubmitEditing={handleSubmit(onSubmit)}
+     ...
+   />
+   ```
+
+   **Note:** `Controller` doesn't forward refs by default. Add `ref={...}` to the inner `TextInput` JSX directly.
+
+3. **Wrap form in `KeyboardAvoidingView`:**
+
+   ```tsx
+   <KeyboardAvoidingView
+     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+     style={{ flex: 1 }}
+   >
+     {/* form here */}
+   </KeyboardAvoidingView>
+   ```
+
+4. **Test:** open the form → keyboard up + title focused. Type, Next button on the keyboard → destination focused. Etc. On iOS, the form pushes up so the active input stays visible.
 
 ---
 
-## Step 10 - Retry buttons in every error state
-
-Everywhere you previously had silence (silent fail) or a plain message, swap to `<ErrorView onRetry={refetch} />`. Requires Step 7.
-
-Exception: keep CountryCard as silent fail - it's decoration.
-
----
-
-## Step 11 - `axios` in one place
-
-Install: `npm install axios`. Create `hooks/useFetchAxios.ts` - same signature, same semantics, but `axios.get(url)` underneath. Swap the call in one chosen component (e.g. `CountryCard`). Compare the bundle size (`expo export` or Metro stats) and the readability.
