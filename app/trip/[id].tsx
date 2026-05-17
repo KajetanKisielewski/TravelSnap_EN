@@ -1,187 +1,500 @@
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
-import RatingStars from '@/components/RatingStars';
-import { useTrips } from '@/contexts/TripContext';
-import { useFavorites } from '@/hooks/useFavorites';
-import { Colors } from '@/constants/Colors';
+import {
+  useEffect,
+  useMemo,
+} from 'react';
 
-export default function TripDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { trips } = useTrips();
-  const router = useRouter();
-  const { isLoading, isFavorite, toggleFavorite } = useFavorites();
+import {
+  router,
+  useLocalSearchParams,
+} from 'expo-router';
 
-  const trip = trips.find((t) => t.id === id);
-  const favorited = isFavorite(id);
+import {
+  Controller,
+  useForm,
+} from 'react-hook-form';
+
+import { zodResolver } from '@hookform/resolvers/zod';
+
+import {
+  Colors,
+} from '@/constants/Colors';
+
+import {
+  useTrips,
+} from '@/contexts/TripContext';
+
+import {
+  tripSchema,
+  type TripFormData,
+} from '@/types/tripSchema';
+
+export default function EditTripScreen() {
+  const { id } =
+    useLocalSearchParams<{
+      id: string;
+    }>();
+
+  const {
+    trips,
+    updateTrip,
+  } = useTrips();
+
+  const trip =
+    useMemo(
+      () =>
+        trips.find(
+          (t) =>
+            t.id === id
+        ),
+
+      [trips, id]
+    );
+
+  const {
+    control,
+
+    handleSubmit,
+
+    reset,
+
+    formState: {
+      isSubmitting,
+    },
+  } =
+    useForm<TripFormData>({
+      resolver:
+        zodResolver(
+          tripSchema
+        ),
+
+      mode: 'onBlur',
+    });
+
+  useEffect(() => {
+    if (!trip) {
+      return;
+    }
+
+    reset({
+      title:
+        trip.title,
+
+      destination:
+        trip.destination,
+
+      date:
+        trip.date,
+
+      rating:
+        trip.rating,
+
+      imageUri:
+        trip.imageUri,
+
+      galleryUris:
+        trip.galleryUris,
+    });
+  }, [trip, reset]);
+
+  const onSubmit =
+    async (
+      data: TripFormData
+    ): Promise<void> => {
+      if (!trip) {
+        return;
+      }
+
+      try {
+        await updateTrip(
+          trip.id,
+          data
+        );
+
+        router.back();
+      } catch (err) {
+        Alert.alert(
+          'Could not update',
+
+          String(err)
+        );
+      }
+    };
 
   if (!trip) {
     return (
-      <>
-        <Stack.Screen options={{ title: 'Trip not found' }} />
-        <View style={styles.screen}>
-          <Text style={styles.errorText}>Trip not found.</Text>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backButtonText}>Back to list</Text>
-          </Pressable>
-        </View>
-      </>
+      <View
+        style={
+          styles.centered
+        }
+      >
+        <Text
+          style={
+            styles.notFound
+          }
+        >
+          Trip not found
+        </Text>
+      </View>
     );
   }
 
-  const { title, destination, date, rating, imageUri, galleryUris } = trip;
-  const galleryCount = galleryUris?.length ?? 0;
-
   return (
-    <>
-      <Stack.Screen
-        options={{
-          title,
-          headerRight: () =>
-            isLoading ? (
-              <View style={styles.heartButton}>
-                <ActivityIndicator size="small" color={Colors.textSecondary} />
-              </View>
-            ) : (
-              <Pressable onPress={() => toggleFavorite(id)} style={styles.heartButton}>
-                <Ionicons
-                  name={favorited ? 'heart' : 'heart-outline'}
-                  size={24}
-                  color={favorited ? Colors.accent : Colors.textSecondary}
-                />
-              </Pressable>
-            ),
-        }}
+    <View
+      style={
+        styles.container
+      }
+    >
+      <Text
+        style={
+          styles.title
+        }
+      >
+        Edit trip
+      </Text>
+
+      <Controller
+        control={control}
+        name="title"
+        render={({
+          field,
+          fieldState,
+        }) => (
+          <>
+            <TextInput
+              style={[
+                styles.input,
+
+                fieldState.error &&
+                  styles.inputError,
+              ]}
+              value={
+                field.value
+              }
+              onChangeText={
+                field.onChange
+              }
+              onBlur={
+                field.onBlur
+              }
+              placeholder="Title"
+              placeholderTextColor={
+                Colors.textSecondary
+              }
+            />
+
+            {fieldState.error && (
+              <Text
+                style={
+                  styles.errorText
+                }
+              >
+                {
+                  fieldState
+                    .error
+                    .message
+                }
+              </Text>
+            )}
+          </>
+        )}
       />
 
-      <ScrollView style={styles.screen} bounces={false}>
-        {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.heroImage} />
-        ) : (
-          <View style={styles.heroPlaceholder}>
-            <Ionicons name="image-outline" size={64} color="#4A6FA5" />
-            <Text style={styles.placeholderText}>No photo</Text>
-          </View>
-        )}
+      <Controller
+        control={control}
+        name="destination"
+        render={({
+          field,
+          fieldState,
+        }) => (
+          <>
+            <TextInput
+              style={[
+                styles.input,
 
-        <View style={styles.body}>
-          <Pressable
-            style={styles.galleryButton}
-            onPress={() =>
-              router.push({ pathname: '/trip/gallery/[id]', params: { id } })
+                fieldState.error &&
+                  styles.inputError,
+              ]}
+              value={
+                field.value
+              }
+              onChangeText={
+                field.onChange
+              }
+              onBlur={
+                field.onBlur
+              }
+              placeholder="Destination"
+              placeholderTextColor={
+                Colors.textSecondary
+              }
+            />
+
+            {fieldState.error && (
+              <Text
+                style={
+                  styles.errorText
+                }
+              >
+                {
+                  fieldState
+                    .error
+                    .message
+                }
+              </Text>
+            )}
+          </>
+        )}
+      />
+
+      <Controller
+        control={control}
+        name="date"
+        render={({
+          field,
+          fieldState,
+        }) => (
+          <>
+            <TextInput
+              style={[
+                styles.input,
+
+                fieldState.error &&
+                  styles.inputError,
+              ]}
+              value={
+                field.value
+              }
+              onChangeText={
+                field.onChange
+              }
+              onBlur={
+                field.onBlur
+              }
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={
+                Colors.textSecondary
+              }
+            />
+
+            {fieldState.error && (
+              <Text
+                style={
+                  styles.errorText
+                }
+              >
+                {
+                  fieldState
+                    .error
+                    .message
+                }
+              </Text>
+            )}
+          </>
+        )}
+      />
+
+      <Controller
+        control={control}
+        name="rating"
+        render={({
+          field,
+          fieldState,
+        }) => (
+          <>
+            <TextInput
+              style={[
+                styles.input,
+
+                fieldState.error &&
+                  styles.inputError,
+              ]}
+              value={String(
+                field.value
+              )}
+              onChangeText={(
+                text
+              ) =>
+                field.onChange(
+                  Number(
+                    text
+                  )
+                )
+              }
+              keyboardType="numeric"
+              onBlur={
+                field.onBlur
+              }
+              placeholder="Rating"
+              placeholderTextColor={
+                Colors.textSecondary
+              }
+            />
+
+            {fieldState.error && (
+              <Text
+                style={
+                  styles.errorText
+                }
+              >
+                {
+                  fieldState
+                    .error
+                    .message
+                }
+              </Text>
+            )}
+          </>
+        )}
+      />
+
+      <Pressable
+        disabled={
+          isSubmitting
+        }
+        onPress={handleSubmit(
+          onSubmit
+        )}
+        style={[
+          styles.button,
+
+          isSubmitting &&
+            styles.buttonDisabled,
+        ]}
+      >
+        {isSubmitting ? (
+          <ActivityIndicator
+            color={
+              Colors.background
+            }
+          />
+        ) : (
+          <Text
+            style={
+              styles.buttonText
             }
           >
-            <Ionicons name="images-outline" size={20} color={Colors.primary} />
-            <Text style={styles.galleryButtonText}>Gallery ({galleryCount})</Text>
-          </Pressable>
-
-          <Text style={styles.tripTitle}>{title}</Text>
-
-          <View style={styles.metaRow}>
-            <Ionicons name="location" size={16} color={Colors.textSecondary} />
-            <Text style={styles.metaText}>{destination}</Text>
-          </View>
-
-          <View style={styles.metaRow}>
-            <Ionicons name="calendar" size={14} color={Colors.textSecondary} />
-            <Text style={[styles.metaText, styles.dateText]}>{date}</Text>
-          </View>
-
-          <View style={styles.starsRow}>
-            <RatingStars rating={rating} />
-          </View>
-
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backButtonText}>Back to list</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
-    </>
+            Update
+          </Text>
+        )}
+      </Pressable>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  heroImage: {
-    width: '100%',
-    height: 250,
-  },
-  heroPlaceholder: {
-    width: '100%',
-    height: 250,
-    backgroundColor: '#1A2744',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  placeholderText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-  },
-  body: {
-    padding: 24,
-  },
-  galleryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: Colors.card,
-    borderRadius: 10,
-    marginBottom: 20,
-    alignSelf: 'flex-start',
-  },
-  galleryButtonText: {
-    color: Colors.primary,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  tripTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.textPrimary,
-    marginBottom: 16,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-  metaText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-  },
-  dateText: {
-    fontSize: 14,
-  },
-  starsRow: {
-    marginTop: 16,
-    marginBottom: 32,
-  },
-  backButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-  },
-  backButtonText: {
-    color: Colors.background,
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  heartButton: {
-    marginRight: 8,
-    padding: 4,
-  },
-  errorText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    marginBottom: 24,
-  },
-});
+const styles =
+  StyleSheet.create({
+    container: {
+      flex: 1,
+
+      backgroundColor:
+        Colors.background,
+
+      padding: 20,
+    },
+
+    centered: {
+      flex: 1,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      backgroundColor:
+        Colors.background,
+    },
+
+    notFound: {
+      color:
+        Colors.textSecondary,
+
+      fontSize: 16,
+    },
+
+    title: {
+      fontSize: 24,
+
+      fontWeight: 'bold',
+
+      color:
+        Colors.textPrimary,
+
+      marginBottom: 20,
+    },
+
+    input: {
+      backgroundColor:
+        Colors.inputBg,
+
+      borderWidth: 1,
+
+      borderColor:
+        Colors.inputBorder,
+
+      borderRadius: 8,
+
+      padding: 12,
+
+      marginBottom: 8,
+
+      color:
+        Colors.textPrimary,
+
+      fontSize: 16,
+    },
+
+    inputError: {
+      borderColor:
+        Colors.accent,
+
+      borderWidth: 1.5,
+    },
+
+    errorText: {
+      color:
+        Colors.accent,
+
+      fontSize: 12,
+
+      marginBottom: 8,
+    },
+
+    button: {
+      backgroundColor:
+        Colors.primary,
+
+      paddingVertical: 14,
+
+      borderRadius: 8,
+
+      alignItems:
+        'center',
+
+      marginTop: 16,
+    },
+
+    buttonDisabled:
+      {
+        opacity: 0.5,
+      },
+
+    buttonText: {
+      color:
+        Colors.background,
+
+      fontWeight: '600',
+
+      fontSize: 16,
+    },
+  });
