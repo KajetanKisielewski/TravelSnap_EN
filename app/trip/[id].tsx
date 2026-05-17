@@ -19,11 +19,24 @@ import { Ionicons } from '@expo/vector-icons';
 
 import RatingStars from '@/components/RatingStars';
 
+import CountryCard from '@/components/CountryCard';
+
 import { useTrips } from '@/contexts/TripContext';
 
 import { useFavorites } from '@/hooks/useFavorites';
 
 import { Colors } from '@/constants/Colors';
+
+import {
+  UNSPLASH_ACCESS_KEY,
+  UNSPLASH_BASE_URL,
+} from '@/constants/api';
+
+import { useFetch } from '@/hooks/useFetch';
+
+import type { UnsplashResponse } from '@/types/unsplash';
+
+import { extractCountry } from '@/utils/extractCountry';
 
 export default function TripDetailScreen() {
   const { id } =
@@ -48,9 +61,6 @@ export default function TripDetailScreen() {
   const trip = trips.find(
     (t) => t.id === id
   );
-
-  const favorited =
-    isFavorite(id);
 
   if (!trip) {
     return (
@@ -104,6 +114,40 @@ export default function TripDetailScreen() {
     imageUri,
     galleryUris,
   } = trip;
+
+  const favorited =
+    isFavorite(id);
+
+  const countryName =
+    extractCountry(
+      destination
+    );
+
+  const unsplashUrl =
+    `${UNSPLASH_BASE_URL}/search/photos?query=${encodeURIComponent(
+      destination
+    )}&per_page=1`;
+
+  const {
+    data: photoData,
+
+    loading: photoLoading,
+  } =
+    useFetch<UnsplashResponse>(
+      unsplashUrl,
+
+      {
+        headers: {
+          Authorization:
+            `Client-ID ${UNSPLASH_ACCESS_KEY}`,
+        },
+      }
+    );
+
+  const heroUri =
+    photoData?.results?.[0]
+      ?.urls?.regular ??
+    imageUri;
 
   const galleryCount =
     galleryUris?.length ??
@@ -195,15 +239,50 @@ export default function TripDetailScreen() {
         style={styles.screen}
         bounces={false}
       >
-        {imageUri ? (
-          <Image
-            source={{
-              uri: imageUri,
-            }}
-            style={
-              styles.heroImage
-            }
-          />
+        {heroUri ? (
+          <>
+            <Image
+              source={{
+                uri: heroUri,
+              }}
+              style={
+                styles.heroImage
+              }
+              resizeMode="cover"
+            />
+
+            {photoLoading && (
+              <View
+                style={
+                  styles.loadingOverlay
+                }
+              >
+                <ActivityIndicator
+                  size="large"
+                  color={
+                    Colors.primary
+                  }
+                />
+              </View>
+            )}
+
+            {photoData?.results?.[0]
+              ?.user?.name && (
+              <Text
+                style={
+                  styles.photoCredit
+                }
+              >
+                Photo by{' '}
+                {
+                  photoData
+                    .results[0]
+                    .user.name
+                }{' '}
+                on Unsplash
+              </Text>
+            )}
+          </>
         ) : (
           <View
             style={
@@ -227,6 +306,12 @@ export default function TripDetailScreen() {
         )}
 
         <View style={styles.body}>
+          <CountryCard
+            countryName={
+              countryName
+            }
+          />
+
           <Pressable
             style={
               styles.editButton
@@ -266,7 +351,7 @@ export default function TripDetailScreen() {
             onPress={() =>
               router.push({
                 pathname:
-                  '/trip/gallery/[id]',
+                  '/trip/gallery/[id]' as any,
 
                 params: {
                   id,
@@ -416,6 +501,34 @@ const styles =
       width: '100%',
 
       height: 250,
+    },
+
+    loadingOverlay: {
+      position: 'absolute',
+
+      top: 0,
+
+      left: 0,
+
+      right: 0,
+
+      height: 250,
+
+      justifyContent:
+        'center',
+
+      alignItems: 'center',
+    },
+
+    photoCredit: {
+      color:
+        Colors.textSecondary,
+
+      fontSize: 12,
+
+      paddingHorizontal: 12,
+
+      paddingTop: 6,
     },
 
     heroPlaceholder: {
